@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     score_threshold: int = 60
 
     # Scraping settings
-    max_jobs_per_run: int = 30
+    max_jobs_per_run: int = 50
     scrape_delay_min: float = 2.0
     scrape_delay_max: float = 5.0
 

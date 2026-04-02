@@ -75,12 +75,8 @@ async def run() -> None:
 
         if not new_jobs and not retry_jobs:
             logger.info("No new jobs found. Done.")
-            send_alert(
-                "📭 No new jobs found this run.\n\n"
-                f"Scraped: {stats['scraped']}\n"
-                "All were duplicates of previously seen jobs."
-            )
             _log_summary(stats)
+            _send_summary(stats)
             return
 
         if not new_jobs and retry_jobs:
@@ -138,13 +134,8 @@ async def run() -> None:
 
         if not candidates and not retry_jobs:
             logger.info("No jobs to score. Done.")
-            send_alert(
-                "📭 No matching jobs this run.\n\n"
-                f"Scraped: {stats['scraped']}\n"
-                f"New: {stats['new']}\n"
-                f"Passed pre-filter: 0"
-            )
             _log_summary(stats)
+            _send_summary(stats)
             return
 
         # ── Stage 4: AI Scoring ──────────────────────────────────
@@ -211,17 +202,8 @@ async def run() -> None:
 
         session.commit()
 
-        if stats["notified"] == 0:
-            send_alert(
-                "📭 No matching jobs found this run.\n\n"
-                f"Scraped: {stats['scraped']}\n"
-                f"New: {stats['new']}\n"
-                f"Passed pre-filter: {stats['prefiltered']}\n"
-                f"Scored: {stats['scored']}\n"
-                f"Above threshold: 0"
-            )
-
         _log_summary(stats)
+        _send_summary(stats)
 
     finally:
         session.close()
@@ -235,6 +217,18 @@ def _log_summary(stats: dict) -> None:
     logger.info("  AI scored:     %d", stats["scored"])
     logger.info("  Notified:      %d", stats["notified"])
     logger.info("========================")
+
+
+def _send_summary(stats: dict) -> None:
+    icon = "✅" if stats["notified"] > 0 else "📭"
+    send_alert(
+        f"{icon} Pipeline Summary\n\n"
+        f"Scraped:       {stats['scraped']}\n"
+        f"New (deduped): {stats['new']}\n"
+        f"Pre-filtered:  {stats['prefiltered']}\n"
+        f"AI scored:     {stats['scored']}\n"
+        f"Notified:      {stats['notified']}"
+    )
 
 
 if __name__ == "__main__":
