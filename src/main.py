@@ -134,10 +134,27 @@ async def run() -> None:
         if not settings.gemini_api_key:
             logger.warning("GEMINI_API_KEY not set — skipping AI scoring")
         else:
-            for i, job in enumerate(all_to_score):
+            rpm_delay = 60.0 / settings.gemini_rpm + 1  # seconds between calls
+            max_calls = settings.gemini_max_per_run
+            scored_count = 0
+
+            logger.info(
+                "Rate limits: %d RPM, %d RPD, max %d per run (delay %.0fs)",
+                settings.gemini_rpm, settings.gemini_rpd, max_calls, rpm_delay,
+            )
+
+            for job in all_to_score:
                 if job.match_score is not None:
                     continue
-                logger.info("Scoring: %s @ %s", job.title, job.company)
+                if scored_count >= max_calls:
+                    remaining = sum(1 for j in all_to_score if j.match_score is None) - scored_count
+                    logger.warning(
+                        "Per-run limit reached (%d/%d). %d jobs deferred to next run.",
+                        scored_count, max_calls, remaining,
+                    )
+                    break
+
+                logger.info("Scoring [%d/%d]: %s @ %s", scored_count + 1, max_calls, job.title, job.company)
                 try:
                     result = score_job(
                         profile=profile,
@@ -152,11 +169,11 @@ async def run() -> None:
                 job.match_score = result["score"]
                 job.match_reasons = json.dumps(result["reasons"])
                 job.missing_skills = json.dumps(result["missing_skills"])
+                scored_count += 1
                 stats["scored"] += 1
 
-                # Stay under 10 RPM limit
-                if i < len(all_to_score) - 1:
-                    await asyncio.sleep(7)
+                if scored_count < max_calls:
+                    await asyncio.sleep(rpm_delay)
 
             session.commit()
             logger.info("Scored %d jobs", stats["scored"])
