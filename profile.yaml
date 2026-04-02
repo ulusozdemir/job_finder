@@ -1,42 +1,74 @@
 # ── Your Profile ──────────────────────────────────────────────
-# Edit this file to match YOUR skills, preferences, and experience.
 # The AI scorer uses `summary` + `skills` to rate each job.
 # The pre-filter uses `must_have_any` and `deal_breakers` for fast rejection.
 
 summary: |
-  Mid-level backend developer with 3 years of experience.
-  Strong in Python, FastAPI, Django, PostgreSQL, Docker.
-  Interested in AI/ML-adjacent roles and remote work.
+  Data Scientist/Engineer with 4 years of hands-on experience.
+  Currently working as a Data Engineer at Picus Security, building
+  agentic AI workflows, data pipelines on AWS, and LLM-powered systems.
+  Previously worked as Data Engineer at Kb01 (fintech/trading) and
+  Data Scientist at Yapi Kredi Bank (ML models, fraud detection, AutoML).
+  Strong in Python, SQL, AWS, PySpark, FastAPI, and modern data stack.
+  Interested in Data Engineering, Data Science, and AI/ML roles.
 
 skills:
   - python
+  - sql
+  - aws
+  - pyspark
   - fastapi
-  - django
-  - postgresql
   - docker
-  - redis
-  - rest api
+  - apache airflow
+  - apache kafka
+  - apache flink
+  - etl
+  - data modeling
+  - mongodb
+  - bigquery
+  - databricks
+  - power bi
+  - machine learning
+  - deep learning
+  - tensorflow
+  - scikit learn
+  - pandas
+  - numpy
+  - n8n
+  - node.js
+  - dbt
   - git
+  - langfuse
+  - openai api
 
-experience_years: 3
+experience_years: 4
 
 preferred_roles:
-  - backend developer
-  - python developer
-  - software engineer
-  - full stack developer
+  - data engineer
+  - data scientist
+  - machine learning engineer
+  - mlops engineer
+  - analytics engineer
+  - ai engineer
 
 # ── Search Queries ────────────────────────────────────────────
 # Each entry becomes a separate LinkedIn search.
-# Supported fields: keywords, location, time_posted (r86400=24h, r604800=7d), remote (true/false)
+# time_posted: r86400=24h, r604800=7d
 
 searches:
-  - keywords: "python backend developer"
+  - keywords: "data engineer"
     location: "Turkey"
     time_posted: "r86400"
     remote: true
-  - keywords: "fastapi developer"
+  - keywords: "data scientist"
+    location: "Turkey"
+    time_posted: "r86400"
+    remote: true
+  - keywords: "machine learning engineer"
     location: "Europe"
+    time_posted: "r86400"
+    remote: true
+  - keywords: "python data engineer aws"
+    location: "United States"
     time_posted: "r86400"
     remote: true
 
@@ -45,14 +77,24 @@ searches:
 # Jobs containing ANY `deal_breakers` term are immediately rejected.
 
 must_have_any:
+  - data engineer
+  - data scientist
+  - machine learning
+  - mlops
+  - analytics engineer
+  - ai engineer
+  - data analytics
   - python
-  - backend
-  - fastapi
-  - django
+  - etl
+  - data pipeline
 
 deal_breakers:
   - "10+ years"
-  - "principal"
-  - "staff engineer"
-  - "security clearance"
+  - "8+ years"
+  - principal
+  - staff engineer
+  - security clearance
   - unpaid
+  - director
+  - vp of
+  - head of

@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     db_url: str = "sqlite:///jobs.db"
 
     # Gemini model to use (free tier)
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.5-flash"
 
     # Only notify if match score >= this value
     score_threshold: int = 60

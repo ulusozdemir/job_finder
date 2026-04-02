@@ -8,6 +8,15 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/sendMessage"
 
+_MD2_SPECIAL = r"\_*[]()~`>#+-=|{}.!"
+
+
+def _escape_md(text: str) -> str:
+    """Escape ALL Telegram MarkdownV2 special chars."""
+    for ch in _MD2_SPECIAL:
+        text = text.replace(ch, f"\\{ch}")
+    return text
+
 
 def _format_message(
     title: str,
@@ -18,26 +27,22 @@ def _format_message(
     reasons: list[str],
     missing_skills: list[str],
 ) -> str:
-    reasons_text = "\n".join(f"  • {r}" for r in reasons)
-    missing_text = ", ".join(missing_skills) if missing_skills else "None"
+    reasons_text = "\n".join(f"  \\- {_escape_md(r)}" for r in reasons)
+    missing_text = ", ".join(_escape_md(s) for s in missing_skills) if missing_skills else "None"
+    esc_title = _escape_md(title)
+    esc_company = _escape_md(company)
+    esc_location = _escape_md(location)
+    esc_score = _escape_md(str(score))
 
     return (
-        f"🎯 *Match Score: {score}/100*\n\n"
-        f"*{_escape_md(title)}*\n"
-        f"🏢 {_escape_md(company)}\n"
-        f"📍 {_escape_md(location)}\n\n"
-        f"*Why it matches:*\n{_escape_md(reasons_text)}\n\n"
-        f"*Missing skills:* {_escape_md(missing_text)}\n\n"
-        f"[View Job]({url})"
+        f"🎯 *Match Score: {esc_score}/100*\n\n"
+        f"*{esc_title}*\n"
+        f"🏢 {esc_company}\n"
+        f"📍 {esc_location}\n\n"
+        f"*Why it matches:*\n{reasons_text}\n\n"
+        f"*Missing skills:* {missing_text}\n\n"
+        f"[View Job]({_escape_md(url)})"
     )
-
-
-def _escape_md(text: str) -> str:
-    """Escape Telegram MarkdownV2 special chars."""
-    special = r"_[]()~`>#+-=|{}.!"
-    for ch in special:
-        text = text.replace(ch, f"\\{ch}")
-    return text
 
 
 def send_alert(message: str) -> bool:
@@ -56,7 +61,10 @@ def send_alert(message: str) -> bool:
             },
             timeout=15,
         )
-        return resp.status_code == 200
+        if resp.status_code == 200:
+            return True
+        logger.error("Telegram alert error %d: %s", resp.status_code, resp.text)
+        return False
     except Exception:
         return False
 

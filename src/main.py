@@ -31,13 +31,16 @@ async def run() -> None:
 
     try:
         # ── Stage 1: Scrape ──────────────────────────────────────
+        # TODO: remove test limit — only first query, max 5 jobs
+        TEST_LIMIT = 5
         all_raw_jobs = []
-        for search in profile.searches:
+        for search in profile.searches[:1]:
             logger.info("Searching: %s (%s)", search.keywords, search.location)
-            jobs = await scrape_search(search)
+            jobs = await scrape_search(search, max_pages=1)
             all_raw_jobs.extend(jobs)
+        all_raw_jobs = all_raw_jobs[:TEST_LIMIT]
         stats["scraped"] = len(all_raw_jobs)
-        logger.info("Total scraped: %d jobs", stats["scraped"])
+        logger.info("Total scraped: %d jobs (TEST_LIMIT=%d)", stats["scraped"], TEST_LIMIT)
 
         # ── Stage 2: Dedup & Store ───────────────────────────────
         new_jobs: list[Job] = []
@@ -71,7 +74,29 @@ async def run() -> None:
             _log_summary(stats)
             return
 
-        # ── Stage 2b: Fetch descriptions for new jobs ────────────
+        # ── Stage 3a: Pre-filter on TITLE only (fast, no HTTP) ───
+        title_passed: list[Job] = []
+        for job in new_jobs:
+            if passes_prefilter(job.title, "", profile):
+                title_passed.append(job)
+            else:
+                logger.debug("Title rejected: %s @ %s", job.title, job.company)
+
+        session.commit()
+        logger.info("Jobs passing title pre-filter: %d / %d", len(title_passed), len(new_jobs))
+
+        if not title_passed:
+            logger.info("No jobs passed title pre-filter. Done.")
+            send_alert(
+                "📭 No jobs passed pre-filter this run.\n\n"
+                f"Scraped: {stats['scraped']}\n"
+                f"New: {stats['new']}\n"
+                "None matched your must-have keywords in the title."
+            )
+            _log_summary(stats)
+            return
+
+        # ── Stage 3b: Fetch descriptions only for survivors ──────
         from src.scraper.linkedin import RawJob
 
         raw_for_desc = [
@@ -83,36 +108,37 @@ async def run() -> None:
                 url=j.url,
                 posted_time=j.posted_time,
             )
-            for j in new_jobs
+            for j in title_passed
         ]
+        logger.info("Fetching descriptions for %d jobs...", len(raw_for_desc))
         descriptions = await fetch_descriptions(raw_for_desc)
 
-        for job in new_jobs:
-            desc = descriptions.get(job.job_id, "")
-            job.description = desc
+        for job in title_passed:
+            job.description = descriptions.get(job.job_id, "")
 
         session.commit()
 
-        # ── Stage 3: Pre-filter ──────────────────────────────────
+        # ── Stage 3c: Pre-filter on TITLE + DESCRIPTION ──────────
         candidates: list[Job] = []
-        for job in new_jobs:
+        for job in title_passed:
             if passes_prefilter(job.title, job.description, profile):
                 job.passed_prefilter = True
                 candidates.append(job)
             else:
-                logger.debug("Pre-filter rejected: %s @ %s", job.title, job.company)
+                logger.debug("Description rejected: %s @ %s", job.title, job.company)
 
         session.commit()
         stats["prefiltered"] = len(candidates)
-        logger.info("Jobs passing pre-filter: %d", stats["prefiltered"])
+        logger.info("Jobs passing full pre-filter: %d", stats["prefiltered"])
 
         if not candidates:
-            logger.info("No jobs passed pre-filter. Done.")
+            logger.info("No jobs passed full pre-filter. Done.")
             send_alert(
                 "📭 No jobs passed pre-filter this run.\n\n"
                 f"Scraped: {stats['scraped']}\n"
                 f"New: {stats['new']}\n"
-                "None matched your must-have keywords."
+                f"Passed title filter: {len(title_passed)}\n"
+                "None survived after checking descriptions."
             )
             _log_summary(stats)
             return
