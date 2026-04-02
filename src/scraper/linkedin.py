@@ -42,8 +42,9 @@ def _build_search_url(query: SearchQuery, start: int = 0) -> str:
         "f_TPR": query.time_posted,
         "start": str(start),
     }
-    if query.remote:
-        params["f_WT"] = "2"
+    work_type_map = {"onsite": "1", "remote": "2", "hybrid": "3"}
+    if query.work_type in work_type_map:
+        params["f_WT"] = work_type_map[query.work_type]
 
     return f"{BASE_URL}?{urlencode(params)}"
 

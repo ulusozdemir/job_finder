@@ -45,8 +45,11 @@ async def run() -> None:
             logger.info("Searching: %s (%s)", search.keywords, search.location)
             jobs = await scrape_search(search)
             all_raw_jobs.extend(jobs)
+            if len(all_raw_jobs) >= settings.max_jobs_per_run:
+                all_raw_jobs = all_raw_jobs[:settings.max_jobs_per_run]
+                break
         stats["scraped"] = len(all_raw_jobs)
-        logger.info("Total scraped: %d jobs", stats["scraped"])
+        logger.info("Total scraped: %d jobs (max %d)", stats["scraped"], settings.max_jobs_per_run)
 
         # ── Stage 2: Dedup & Store ───────────────────────────────
         new_jobs: list[Job] = []

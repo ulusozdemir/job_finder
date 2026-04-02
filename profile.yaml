@@ -53,24 +53,15 @@ preferred_roles:
 # ── Search Queries ────────────────────────────────────────────
 # Each entry becomes a separate LinkedIn search.
 # time_posted: r86400=24h, r604800=7d
+# work_type: "remote", "onsite", "hybrid", or "" (all types)
 
 searches:
   - keywords: "data engineer"
     location: "Turkey"
     time_posted: "r86400"
-    remote: true
   - keywords: "data scientist"
     location: "Turkey"
     time_posted: "r86400"
-    remote: true
-  - keywords: "machine learning engineer"
-    location: "Europe"
-    time_posted: "r86400"
-    remote: true
-  - keywords: "python data engineer aws"
-    location: "United States"
-    time_posted: "r86400"
-    remote: true
 
 # ── Pre-filter Rules ─────────────────────────────────────────
 # Jobs must contain at least ONE of `must_have_any` (case-insensitive).

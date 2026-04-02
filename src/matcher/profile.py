@@ -9,7 +9,7 @@ class SearchQuery:
     keywords: str
     location: str = ""
     time_posted: str = "r86400"
-    remote: bool = False
+    work_type: str = ""  # "remote", "onsite", "hybrid", or "" for all
 
 
 @dataclass
