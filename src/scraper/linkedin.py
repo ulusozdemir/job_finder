@@ -87,8 +87,12 @@ def _parse_job_cards(html: str) -> list[RawJob]:
     return jobs
 
 
-async def _fetch_job_description(client: httpx.AsyncClient, url: str) -> str:
-    """Fetch the full job description from the job detail page."""
+async def _fetch_job_description(client: httpx.AsyncClient, url: str) -> tuple[str, str]:
+    """Fetch the full job description and work type from the job detail page.
+
+    Returns (description, work_type) where work_type is one of
+    "Remote", "Hybrid", "On-site", or "" if not found.
+    """
     try:
         delay = random.uniform(settings.scrape_delay_min, settings.scrape_delay_max)
         await asyncio.sleep(delay)
@@ -97,15 +101,41 @@ async def _fetch_job_description(client: httpx.AsyncClient, url: str) -> str:
         resp.raise_for_status()
 
         soup = BeautifulSoup(resp.text, "html.parser")
+
+        description = ""
         desc_el = soup.select_one(
             "div.description__text, "
             "div.show-more-less-html__markup, "
             "section.description div.core-section-container__content"
         )
         if desc_el:
-            return desc_el.get_text(separator="\n", strip=True)
+            description = desc_el.get_text(separator="\n", strip=True)
+
+        work_type = _parse_work_type(soup)
+
+        return description, work_type
     except Exception:
         logger.warning("Failed to fetch description for %s", url, exc_info=True)
+    return "", ""
+
+
+def _parse_work_type(soup: BeautifulSoup) -> str:
+    """Extract workplace type from the job detail page."""
+    WORK_TYPE_LABELS = {"remote", "hybrid", "on-site", "on site"}
+
+    for item in soup.select("li.description__job-criteria-item"):
+        header = item.select_one("h3")
+        value = item.select_one("span")
+        if header and value:
+            h_text = header.get_text(strip=True).lower()
+            if "workplace" in h_text or "work type" in h_text:
+                return value.get_text(strip=True)
+
+    for span in soup.select("span.ui-label, span.workplace-type"):
+        text = span.get_text(strip=True).lower()
+        if text in WORK_TYPE_LABELS:
+            return span.get_text(strip=True)
+
     return ""
 
 
@@ -141,11 +171,14 @@ async def scrape_page(query: SearchQuery, page: int) -> list[RawJob] | None:
         return jobs
 
 
-async def fetch_descriptions(jobs: list[RawJob]) -> dict[str, str]:
-    """Fetch descriptions for a batch of jobs. Returns {job_id: description}."""
-    descriptions: dict[str, str] = {}
+async def fetch_descriptions(jobs: list[RawJob]) -> dict[str, tuple[str, str]]:
+    """Fetch descriptions for a batch of jobs.
+
+    Returns {job_id: (description, work_type)}.
+    """
+    results: dict[str, tuple[str, str]] = {}
     async with httpx.AsyncClient(timeout=30) as client:
         for job in jobs:
-            desc = await _fetch_job_description(client, job.url)
-            descriptions[job.job_id] = desc
-    return descriptions
+            desc, wtype = await _fetch_job_description(client, job.url)
+            results[job.job_id] = (desc, wtype)
+    return results

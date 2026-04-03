@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # Only notify if match score >= this value
     score_threshold: int = 60
 
+    # Content dedup: ignore duplicates only within this window (days).
+    # If the same title+company was notified more than N days ago, treat as new.
+    dedup_days: int = 7
+
     # Scraping settings — keep close to per-run scoring budget
     min_filtered_jobs: int = 5
     scrape_delay_min: float = 2.0

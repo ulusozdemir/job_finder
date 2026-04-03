@@ -106,9 +106,11 @@ async def run() -> None:
                     )
                     for j in title_passed
                 ]
-                descriptions = await fetch_descriptions(raw_for_desc)
+                detail_results = await fetch_descriptions(raw_for_desc)
                 for job in title_passed:
-                    job.description = descriptions.get(job.job_id, "")
+                    desc, wtype = detail_results.get(job.job_id, ("", ""))
+                    job.description = desc
+                    job.work_type = wtype
                 session.commit()
 
                 # Full pre-filter (title + description)
@@ -129,8 +131,55 @@ async def run() -> None:
             _send_summary(stats)
             return
 
+        # ── Stage 3.5: Content-based dedup (same title+company within N days) ──
+        from datetime import datetime, timedelta, timezone
+        dedup_cutoff_str = (
+            datetime.now(timezone.utc) - timedelta(days=settings.dedup_days)
+        ).strftime("%Y-%m-%d")
+
+        def _is_duplicate(job: Job) -> bool:
+            """Check if we notified a same title+company job within the dedup window."""
+            normalised_title = job.title.strip().lower()
+            normalised_company = job.company.strip().lower()
+            return (
+                session.query(Job)
+                .filter(
+                    Job.id != job.id,
+                    Job.notified == True,  # noqa: E712
+                    Job.posted_time >= dedup_cutoff_str,
+                    Job.title.ilike(normalised_title),
+                    Job.company.ilike(normalised_company),
+                )
+                .first()
+                is not None
+            )
+
+        deduped_candidates: list[Job] = []
+        for job in candidates:
+            if _is_duplicate(job):
+                job.notified = True  # mark so we never revisit
+                logger.info("Duplicate (already notified): %s @ %s", job.title, job.company)
+            else:
+                deduped_candidates.append(job)
+        session.commit()
+
+        deduped_retries: list[Job] = []
+        for job in retry_jobs:
+            if _is_duplicate(job):
+                job.notified = True
+                logger.info("Duplicate retry (already notified): %s @ %s", job.title, job.company)
+            else:
+                deduped_retries.append(job)
+        session.commit()
+
+        logger.info(
+            "Content dedup: %d candidates → %d, %d retries → %d",
+            len(candidates), len(deduped_candidates),
+            len(retry_jobs), len(deduped_retries),
+        )
+
         # ── Stage 4: AI Scoring ──────────────────────────────────
-        all_to_score = retry_jobs + candidates
+        all_to_score = deduped_retries + deduped_candidates
         if not settings.gemini_api_key:
             logger.warning("GEMINI_API_KEY not set — skipping AI scoring")
         else:
@@ -179,7 +228,7 @@ async def run() -> None:
             logger.info("Scored %d jobs", stats["scored"])
 
         # ── Stage 5: Notify ──────────────────────────────────────
-        all_to_notify = retry_jobs + candidates
+        all_to_notify = deduped_retries + deduped_candidates
         below_threshold: list[Job] = []
         for job in all_to_notify:
             if job.notified:
@@ -201,6 +250,8 @@ async def run() -> None:
                 score=int(job.match_score),
                 reasons=reasons,
                 missing_skills=missing,
+                posted_time=job.posted_time,
+                work_type=job.work_type,
             )
             if sent:
                 job.notified = True

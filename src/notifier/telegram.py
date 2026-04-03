@@ -26,6 +26,8 @@ def _format_message(
     score: int,
     reasons: list[str],
     missing_skills: list[str],
+    posted_time: str = "",
+    work_type: str = "",
 ) -> str:
     reasons_text = "\n".join(f"  \\- {_escape_md(r)}" for r in reasons)
     missing_text = ", ".join(_escape_md(s) for s in missing_skills) if missing_skills else "None"
@@ -34,11 +36,17 @@ def _format_message(
     esc_location = _escape_md(location)
     esc_score = _escape_md(str(score))
 
+    meta_line = f"📍 {esc_location}"
+    if work_type:
+        meta_line += f"  \\|  🏠 {_escape_md(work_type)}"
+    if posted_time:
+        meta_line += f"  \\|  🕐 {_escape_md(posted_time)}"
+
     return (
         f"🎯 *Match Score: {esc_score}/100*\n\n"
         f"*{esc_title}*\n"
         f"🏢 {esc_company}\n"
-        f"📍 {esc_location}\n\n"
+        f"{meta_line}\n\n"
         f"*Why it matches:*\n{reasons_text}\n\n"
         f"*Missing skills:* {missing_text}\n\n"
         f"[View Job]({_escape_md(url)})"
@@ -77,12 +85,17 @@ def send_job_notification(
     score: int,
     reasons: list[str],
     missing_skills: list[str],
+    posted_time: str = "",
+    work_type: str = "",
 ) -> bool:
     if not settings.telegram_bot_token or not settings.telegram_chat_id:
         logger.warning("Telegram credentials not configured, skipping notification")
         return False
 
-    message = _format_message(title, company, location, url, score, reasons, missing_skills)
+    message = _format_message(
+        title, company, location, url, score, reasons, missing_skills,
+        posted_time=posted_time, work_type=work_type,
+    )
     api_url = TELEGRAM_API.format(token=settings.telegram_bot_token)
 
     try:

@@ -59,7 +59,10 @@ searches:
   - keywords: "data engineer"
     location: "Turkey"
     time_posted: "r86400"
-  - keywords: "data scientist"
+  - keywords: "veri mühendisi"
+    location: "Turkey"
+    time_posted: "r86400"
+  - keywords: "data"
     location: "Turkey"
     time_posted: "r86400"
 
@@ -69,6 +72,10 @@ searches:
 
 must_have_any:
   - data engineer
+  - veri mühendisi
+  - veri mühendisliği
+  - business intelligence
+  - data analyst
   - data scientist
   - machine learning
   - mlops

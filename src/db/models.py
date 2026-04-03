@@ -19,6 +19,7 @@ class Job(Base):
     url: Mapped[str] = mapped_column(String(512))
     description: Mapped[str] = mapped_column(Text, default="")
     posted_time: Mapped[str] = mapped_column(String(128), default="")
+    work_type: Mapped[str] = mapped_column(String(64), default="")
 
     # Pre-filter
     passed_prefilter: Mapped[bool] = mapped_column(Boolean, default=False)
