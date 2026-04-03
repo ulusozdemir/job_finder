@@ -82,11 +82,12 @@ must_have_any:
   - analytics engineer
   - ai engineer
   - data analytics
-  - python
   - etl
   - data pipeline
 
 deal_breakers:
+  - new grad
+  - yeni mezun
   - "10+ years"
   - "8+ years"
   - principal
