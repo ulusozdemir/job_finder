@@ -1,119 +1,104 @@
-# ── Your Profile ──────────────────────────────────────────────
-# The AI scorer uses `summary` + `skills` to rate each job.
-# The pre-filter uses `must_have_any` and `deal_breakers` for fast rejection.
-
 summary: |
-  Data Scientist/Engineer with 4 years of hands-on experience.
-  Currently working as a Data Engineer at Picus Security, building
-  agentic AI workflows, data pipelines on AWS, and LLM-powered systems.
-  Previously worked as Data Engineer at Kb01 (fintech/trading) and
-  Data Scientist at Yapi Kredi Bank (ML models, fraud detection, AutoML).
-  Strong in Python, SQL, AWS, PySpark, FastAPI, and modern data stack.
-  Interested in Data Engineering, Data Science, and AI/ML roles.
+  Data Scientist / Data Engineer with hands-on experience in end-to-end data pipelines
+  in a manufacturing environment. Currently working at Karsu Tekstil as the sole data
+  professional, managing data collection from machines, ETL processes, and reporting systems.
+  Strong expertise in SQL optimization (achieved 300% performance improvement),
+  real-time data processing, and building dashboards for business insights.
+  Experienced with Python, Node-RED, KepServer, and industrial data systems.
+  Interested in Data Engineering and Analytics roles with a focus on scalable data systems.
 
 skills:
   - python
   - sql
-  - aws
-  - pyspark
-  - fastapi
-  - docker
-  - apache airflow
-  - apache kafka
-  - apache flink
-  - etl
-  - data modeling
-  - mongodb
-  - bigquery
-  - databricks
-  - power bi
-  - machine learning
-  - deep learning
-  - tensorflow
-  - scikit learn
+  - mssql
+  - postgresql
+  - db2
   - pandas
   - numpy
-  - n8n
-  - node.js
-  - dbt
+  - power bi
+  - grafana
+  - node-red
+  - kepserver
+  - mqtt
+  - etl
+  - data pipeline
+  - data modeling
+  - data analysis
+  - dashboarding
+  - machine learning
   - git
-  - langfuse
-  - openai api
+  - docker
 
-experience_years: 4
+experience_years: 2
 
 preferred_roles:
   - data engineer
-  - data scientist
-  - machine learning engineer
-  - mlops engineer
+  - data analyst
   - analytics engineer
-  - ai engineer
+  - business intelligence
+  - data scientist
 
 # ── Search Queries ────────────────────────────────────────────
-# Each entry becomes a separate LinkedIn search.
-# time_posted: r86400=24h, r604800=7d
-# work_type: "remote", "onsite", "hybrid", or "" (all types)
 
 searches:
   - keywords: "data engineer"
     location: "Turkey"
     time_posted: "r604800"
+
   - keywords: "veri mühendisi"
     location: "Turkey"
     time_posted: "r604800"
-  - keywords: "data scientist"
-    location: "Turkey"
-    time_posted: "r604800"
+
   - keywords: "data analyst"
     location: "Turkey"
     time_posted: "r604800"
+
+  - keywords: "veri analisti"
+    location: "Turkey"
+    time_posted: "r604800"
+
   - keywords: "business intelligence"
     location: "Turkey"
     time_posted: "r604800"
+
   - keywords: "analytics engineer"
     location: "Turkey"
     time_posted: "r604800"
-  - keywords: "data"
+
+  - keywords: "sql"
     location: "Turkey"
     time_posted: "r604800"
-  - keywords: "ai engineer"
+
+  - keywords: "etl"
     location: "Turkey"
     time_posted: "r604800"
 
 
 # ── Pre-filter Rules ─────────────────────────────────────────
-# Jobs must contain at least ONE of `must_have_any` (case-insensitive).
-# Jobs containing ANY `deal_breakers` term are immediately rejected.
 
 must_have_any:
   - data engineer
   - veri mühendisi
   - veri mühendisliği
-  - business intelligence
   - data analyst
-  - data scientist
-  - machine learning
-  - mlops
+  - veri analisti
+  - business intelligence
   - analytics engineer
-  - ai engineer
-  - data analytics
+  - data
+  - veri
+  - sql
   - etl
   - data pipeline
-  - data
-  - veri analisti
-  - veri
-  - veri bilimci
+  - reporting
+  - dashboard
 
 deal_breakers:
-  - new grad
-  - yeni mezun
-  - "10+ years"
+  - "6+ years"
   - "8+ years"
+  - "10+ years"
   - principal
   - staff engineer
-  - security clearance
-  - unpaid
   - director
   - vp of
   - head of
+  - unpaid
