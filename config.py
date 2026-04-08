@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     dedup_days: int = 7
 
     # Scraping settings — keep close to per-run scoring budget
-    min_filtered_jobs: int = 5
+    min_filtered_jobs: int = 50
     scrape_delay_min: float = 2.0
     scrape_delay_max: float = 5.0
 
