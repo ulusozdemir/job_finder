@@ -87,7 +87,7 @@ def _parse_job_cards(html: str) -> list[RawJob]:
     return jobs
 
 
-async def _fetch_job_description(client: httpx.AsyncClient, url: str) -> tuple[str, str]:
+async def _fetch_job_description(client: httpx.AsyncClient, url: str, title: str = "") -> tuple[str, str]:
     """Fetch the full job description and work type from the job detail page.
 
     Returns (description, work_type) where work_type is one of
@@ -111,7 +111,7 @@ async def _fetch_job_description(client: httpx.AsyncClient, url: str) -> tuple[s
         if desc_el:
             description = desc_el.get_text(separator="\n", strip=True)
 
-        work_type = _parse_work_type(soup)
+        work_type = _parse_work_type(soup, title=title)
 
         return description, work_type
     except Exception:
@@ -119,22 +119,58 @@ async def _fetch_job_description(client: httpx.AsyncClient, url: str) -> tuple[s
     return "", ""
 
 
-def _parse_work_type(soup: BeautifulSoup) -> str:
-    """Extract workplace type from the job detail page."""
-    WORK_TYPE_LABELS = {"remote", "hybrid", "on-site", "on site"}
+_WORK_TYPE_MAP = {
+    "remote": "Remote", "uzaktan": "Remote",
+    "hybrid": "Hybrid", "hibrit": "Hybrid",
+    "on-site": "On-site", "on site": "On-site",
+    "onsite": "On-site", "yerinde": "On-site", "ofiste": "On-site",
+}
 
+
+def _parse_work_type(soup: BeautifulSoup, title: str = "") -> str:
+    """Extract workplace type from the job detail page, title, or description."""
+    # 1) Structured criteria (EN: "Workplace type", TR: "İş yeri türü")
     for item in soup.select("li.description__job-criteria-item"):
         header = item.select_one("h3")
         value = item.select_one("span")
         if header and value:
             h_text = header.get_text(strip=True).lower()
-            if "workplace" in h_text or "work type" in h_text:
+            if any(k in h_text for k in ("workplace", "work type", "iş yeri")):
                 return value.get_text(strip=True)
 
     for span in soup.select("span.ui-label, span.workplace-type"):
         text = span.get_text(strip=True).lower()
-        if text in WORK_TYPE_LABELS:
-            return span.get_text(strip=True)
+        if text in _WORK_TYPE_MAP:
+            return _WORK_TYPE_MAP[text]
+
+    # 2) Title-based detection (e.g. "AI Engineer (Remote)")
+    title_lower = title.lower()
+    for keyword, label in _WORK_TYPE_MAP.items():
+        if keyword in title_lower:
+            return label
+
+    # 3) Scan topcard location area
+    for span in soup.select("span.topcard__flavor"):
+        text = span.get_text(strip=True).lower()
+        for keyword, label in _WORK_TYPE_MAP.items():
+            if keyword in text:
+                return label
+
+    # 4) Scan job description text
+    desc_el = soup.select_one(
+        "div.description__text, "
+        "div.show-more-less-html__markup, "
+        "section.description div.core-section-container__content"
+    )
+    if desc_el:
+        desc_text = desc_el.get_text(separator=" ", strip=True).lower()
+        remote_signals = ["remote position", "remote role", "fully remote", "work remotely",
+                          "uzaktan çalışma", "remote çalışma", "this is a remote"]
+        hybrid_signals = ["hybrid position", "hybrid role", "hybrid work", "hibrit çalışma"]
+        if any(s in desc_text for s in remote_signals):
+            return "Remote"
+        if any(s in desc_text for s in hybrid_signals):
+            return "Hybrid"
 
     return ""
 
@@ -179,6 +215,6 @@ async def fetch_descriptions(jobs: list[RawJob]) -> dict[str, tuple[str, str]]:
     results: dict[str, tuple[str, str]] = {}
     async with httpx.AsyncClient(timeout=30) as client:
         for job in jobs:
-            desc, wtype = await _fetch_job_description(client, job.url)
+            desc, wtype = await _fetch_job_description(client, job.url, title=job.title)
             results[job.job_id] = (desc, wtype)
     return results
