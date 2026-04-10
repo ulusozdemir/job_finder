@@ -2,9 +2,12 @@ name: Job Finder Pipeline
 
 on:
   schedule:
-    # Runs every 6 hours
+    # Runs every 6 hours (4 times/day)
     - cron: "0 */6 * * *"
   workflow_dispatch: # Allow manual trigger
+
+permissions:
+  contents: write
 
 jobs:
   find-jobs:
@@ -23,14 +26,6 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Download previous DB (if any)
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          name: jobs-db
-          path: .
-          search_artifacts: true
-          if_no_artifact_found: warn
-
       - name: Run pipeline
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -38,10 +33,19 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m src.main
 
-      - name: Upload DB artifact
+      - name: Commit updated DB
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add jobs.db
+          git diff --cached --quiet || git commit -m "chore: update jobs.db [skip ci]"
+          git push
+
+      - name: Upload DB artifact (backup)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jobs-db
           path: jobs.db
-          retention-days: 90
+          retention-days: 30
           overwrite: true
