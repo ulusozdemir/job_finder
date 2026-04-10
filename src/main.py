@@ -154,21 +154,27 @@ async def run() -> None:
                 is not None
             )
 
+        seen_pairs: set[tuple[str, str]] = set()
+
         deduped_candidates: list[Job] = []
         for job in candidates:
-            if _is_duplicate(job):
-                job.notified = True  # mark so we never revisit
+            key = (job.title.strip().lower(), job.company.strip().lower())
+            if key in seen_pairs or _is_duplicate(job):
+                job.notified = True
                 logger.info("Duplicate (already notified): %s @ %s", job.title, job.company)
             else:
+                seen_pairs.add(key)
                 deduped_candidates.append(job)
         session.commit()
 
         deduped_retries: list[Job] = []
         for job in retry_jobs:
-            if _is_duplicate(job):
+            key = (job.title.strip().lower(), job.company.strip().lower())
+            if key in seen_pairs or _is_duplicate(job):
                 job.notified = True
                 logger.info("Duplicate retry (already notified): %s @ %s", job.title, job.company)
             else:
+                seen_pairs.add(key)
                 deduped_retries.append(job)
         session.commit()
 
