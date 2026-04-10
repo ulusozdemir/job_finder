@@ -1,13 +1,3 @@
-# ── Personal Info (used for auto-apply form filling) ─────────
-# Email & phone are loaded from .env / GitHub Secrets (APPLICANT_EMAIL, APPLICANT_PHONE).
-personal:
-  first_name: "Berke"
-  last_name: "Oden"
-  linkedin_url: "https://linkedin.com/in/berkeoden"
-  location: "Ankara, Turkey"
-  education: "Bachelor's Degree in Mechanical Engineering"
-  university: "Yildiz Technical University"
-
 # ── Your Profile ──────────────────────────────────────────────
 # The AI scorer uses `summary` + `skills` to rate each job.
 # The pre-filter uses `must_have_any` and `deal_breakers` for fast rejection.

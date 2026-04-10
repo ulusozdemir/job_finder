@@ -29,14 +29,6 @@ class Settings(BaseSettings):
     scrape_delay_min: float = 2.0
     scrape_delay_max: float = 5.0
 
-    # Auto-apply settings
-    cv_path: str = "assets/BERKE ODEN CV.pdf"
-    linkedin_cookies_json: str = ""
-
-    # Sensitive personal info (loaded from .env / Secrets)
-    applicant_email: str = ""
-    applicant_phone: str = ""
-
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
