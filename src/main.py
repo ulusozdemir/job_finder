@@ -229,6 +229,7 @@ async def run() -> None:
                 job.match_score = result["score"]
                 job.match_reasons = json.dumps(result["reasons"])
                 job.missing_skills = json.dumps(result["missing_skills"])
+                job.rejection_reason = result.get("rejection_reason", "")
                 session.commit()
                 scored_count += 1
                 stats["scored"] += 1
@@ -301,10 +302,12 @@ def _send_summary(stats: dict, below_threshold: list | None = None) -> None:
     if below_threshold:
         lines.append(f"\n🚫 Rejected by AI (score < {settings.score_threshold}):")
         for job in below_threshold:
-            reasons = json.loads(job.match_reasons or "[]")
-            reason_short = reasons[0] if reasons else "—"
+            reason = job.rejection_reason or "—"
+            missing = json.loads(job.missing_skills or "[]")
+            missing_str = ", ".join(missing[:3]) if missing else "—"
             lines.append(f"  [{int(job.match_score)}] {job.title} @ {job.company}")
-            lines.append(f"       {reason_short}")
+            lines.append(f"       {reason}")
+            lines.append(f"       Missing: {missing_str}")
             lines.append(f"       {job.url}")
 
     send_alert("\n".join(lines))

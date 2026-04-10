@@ -26,6 +26,7 @@ and return a JSON object with exactly these keys:
 - "score": integer 0-100 (how well the job matches the candidate)
 - "reasons": list of 2-4 short strings explaining the score
 - "missing_skills": list of skills the job requires that the candidate lacks
+- "rejection_reason": a single short string explaining why the score is not higher (what holds it back)
 
 Be strict: a generic "software engineer" job with no skill overlap should score below 30.
 A perfect match (same stack, same seniority, remote if preferred) should score 85-100.
@@ -68,6 +69,7 @@ def _parse_response(text: str) -> dict:
         "score": int(result.get("score", 0)),
         "reasons": result.get("reasons", []),
         "missing_skills": result.get("missing_skills", []),
+        "rejection_reason": result.get("rejection_reason", ""),
     }
 
 

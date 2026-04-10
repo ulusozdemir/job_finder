@@ -20,9 +20,14 @@ def _migrate(eng) -> None:
     if "jobs" not in insp.get_table_names():
         return
     existing = {col["name"] for col in insp.get_columns("jobs")}
-    if "work_type" not in existing:
-        with eng.begin() as conn:
-            conn.execute(text("ALTER TABLE jobs ADD COLUMN work_type VARCHAR(64) DEFAULT ''"))
+    migrations = {
+        "work_type": "ALTER TABLE jobs ADD COLUMN work_type VARCHAR(64) DEFAULT ''",
+        "rejection_reason": "ALTER TABLE jobs ADD COLUMN rejection_reason TEXT",
+    }
+    with eng.begin() as conn:
+        for col, sql in migrations.items():
+            if col not in existing:
+                conn.execute(text(sql))
 
 
 def get_session() -> Session:

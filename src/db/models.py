@@ -28,6 +28,7 @@ class Job(Base):
     match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     match_reasons: Mapped[str | None] = mapped_column(Text, nullable=True)
     missing_skills: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Notification
     notified: Mapped[bool] = mapped_column(Boolean, default=False)
