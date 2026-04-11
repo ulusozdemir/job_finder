@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 MAX_AGENT_STEPS = 50
-AGENT_TIMEOUT_SECONDS = 540
+AGENT_TIMEOUT_SECONDS = 720
 
 from .base import SCREENSHOT_DIR, ApplicantProfile, ApplyResult, BaseAdapter
 from .email_verifier import fetch_linkedin_verification_code
@@ -341,11 +341,11 @@ class AgentAdapter(BaseAdapter):
                         `input[name*="${name}"], textarea[name*="${name}"]`
                     );
                 }
-                if (!input) return null;
+                if (!input) return JSON.stringify({found: false});
                 input.scrollIntoView({block: 'center'});
                 input.focus();
                 input.click();
-                return {tag: input.tagName, name: input.name || '', id: input.id || ''};
+                return JSON.stringify({found: true, tag: input.tagName, name: input.name || '', id: input.id || ''});
             }"""
 
             async def _cdp_type(browser_session, page, text):
@@ -388,8 +388,10 @@ class AgentAdapter(BaseAdapter):
                 if not page:
                     return ActionResult(extracted_content="No active page found")
                 try:
-                    info = await page.evaluate(_FIND_INPUT_JS, {"label": label, "name": name})
-                    if not info:
+                    import json as _json
+                    raw = await page.evaluate(_FIND_INPUT_JS, {"label": label, "name": name})
+                    info = _json.loads(raw) if isinstance(raw, str) else (raw or {})
+                    if not info.get("found"):
                         msg = f"Field not found: label='{label}', name='{name}'"
                         logger.warning("fill_text_field: %s", msg)
                         return ActionResult(extracted_content=msg)
@@ -398,7 +400,7 @@ class AgentAdapter(BaseAdapter):
 
                     actual = await page.evaluate("() => document.activeElement ? document.activeElement.value : ''")
                     msg = (
-                        f"Filled {info['tag']} (label='{label}', name='{info['name']}') "
+                        f"Filled {info.get('tag','')} (label='{label}', name='{info.get('name','')}') "
                         f"with '{value}' (actual='{actual}')"
                     )
                     logger.info("fill_text_field: %s", msg)
@@ -423,8 +425,10 @@ class AgentAdapter(BaseAdapter):
                 if not page:
                     return ActionResult(extracted_content="No active page found")
                 try:
-                    info = await page.evaluate(_FIND_INPUT_JS, {"label": label, "name": name})
-                    if not info:
+                    import json as _json
+                    raw = await page.evaluate(_FIND_INPUT_JS, {"label": label, "name": name})
+                    info = _json.loads(raw) if isinstance(raw, str) else (raw or {})
+                    if not info.get("found"):
                         msg = f"autocomplete_select: field not found: label='{label}', name='{name}'"
                         logger.warning(msg)
                         return ActionResult(extracted_content=msg)
