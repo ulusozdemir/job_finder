@@ -205,6 +205,9 @@ async def run_applicant() -> None:
             if cb_id:
                 answer_callback(cb_id, "Applying now...")
 
+            job.apply_status = "approved"
+            session.commit()
+
             result = await _apply_to_job(job, profile, session)
             applied_count += 1
 
@@ -239,11 +242,18 @@ async def run_applicant() -> None:
                 )
             else:
                 logger.warning("Failed: %s @ %s - %s", job.title, job.company, result.message)
+                job.apply_status = "not_applied"
+                session.commit()
+                buttons = [
+                    [{"text": "\U0001f504 Retry", "callback_data": f"apply:{job.job_id}"}],
+                ]
+                if job_url:
+                    buttons.append([{"text": "\U0001f517 View Job", "url": job_url}])
                 send_alert(
                     f"\u274c Application failed\n\n"
                     f"{job.title} @ {job.company}\n"
                     f"{result.message[:200]}",
-                    buttons=[[{"text": "\U0001f517 View Job", "url": job_url}]] if job_url else None,
+                    buttons=buttons,
                 )
 
             # Random delay between applications for ban prevention
