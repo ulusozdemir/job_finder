@@ -153,7 +153,7 @@ job_finder/
 - **Artifact**: Uploads `jobs.db` for the apply workflow
 
 ### Apply (`apply.yml`)
-- **Runs on**: Self-hosted runner (schedule: every 2 hours + manual)
+- **Runs on**: Self-hosted runner (schedule: every 30 minutes + manual)
 - **Inputs**: `test_url` — optional direct job URL for testing
 - **Does**: Downloads scrape DB → Restores local apply statuses → Processes approved/retried jobs → Uploads updated DB
 - **DB sync**: Backs up local `apply_status` before downloading scrape DB, then merges back to preserve apply results
