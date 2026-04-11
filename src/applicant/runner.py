@@ -242,8 +242,6 @@ async def run_applicant() -> None:
                 )
             else:
                 logger.warning("Failed: %s @ %s - %s", job.title, job.company, result.message)
-                job.apply_status = "not_applied"
-                session.commit()
                 buttons = [
                     [{"text": "\U0001f504 Retry", "callback_data": f"apply:{job.job_id}"}],
                 ]
