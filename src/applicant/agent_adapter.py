@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 MAX_AGENT_STEPS = 65
-AGENT_TIMEOUT_SECONDS = 30
+AGENT_TIMEOUT_SECONDS = 780
 
 from .base import SCREENSHOT_DIR, ApplicantProfile, ApplyResult, BaseAdapter
 from .email_verifier import fetch_linkedin_verification_code
