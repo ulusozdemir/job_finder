@@ -34,6 +34,13 @@ class AgentAdapter(BaseAdapter):
             is_linkedin = "linkedin.com" in url.lower()
             has_session = SESSION_PATH.exists()
 
+            import re
+            normalized_url = re.sub(
+                r"https?://[a-z]{2}\.linkedin\.com",
+                "https://www.linkedin.com",
+                url,
+            )
+
             login_instructions = ""
             if is_linkedin:
                 if has_session:
@@ -41,7 +48,7 @@ class AgentAdapter(BaseAdapter):
                         f"You are already logged in to LinkedIn (session cookies loaded).\n"
                         f"1. FIRST navigate to https://www.linkedin.com/feed to activate the session.\n"
                         f"2. If the feed loads and you see your profile/posts, you are logged in. "
-                        f"Then navigate to {url}\n"
+                        f"Then navigate to {normalized_url} in the SAME tab (do NOT open a new tab).\n"
                         f"3. If the feed redirects to a login page, enter email: {settings.linkedin_email} "
                         f"and password: {settings.linkedin_password}, then click 'Sign in'.\n"
                         f"4. Click 'Easy Apply' if available, fill any required fields, and submit.\n"
