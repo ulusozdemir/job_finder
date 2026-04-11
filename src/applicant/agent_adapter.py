@@ -622,7 +622,9 @@ class AgentAdapter(BaseAdapter):
 
             is_success = not any(
                 kw in result_text
-                for kw in ["error", "failed", "could not", "unable"]
+                for kw in ["error", "failed", "could not", "unable",
+                            "already applied", "already submitted",
+                            "no longer accepting", "not available"]
             )
 
             return ApplyResult(
