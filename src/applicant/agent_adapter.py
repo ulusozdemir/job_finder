@@ -73,14 +73,16 @@ class AgentAdapter(BaseAdapter):
             )
 
             closed_job_instructions = (
-                f"\nJOB CLOSED / EXPIRED DETECTION (CRITICAL):\n"
+                f"\nJOB CLOSED / ALREADY APPLIED DETECTION (CRITICAL):\n"
                 f"After navigating to the job page, if you see ANY of these:\n"
                 f"- 'No longer accepting applications'\n"
                 f"- 'This job is no longer available'\n"
                 f"- 'This position has been filled'\n"
                 f"- 'Bu ilan artık aktif değil'\n"
                 f"- 'Başvuru kabul edilmiyor'\n"
-                f"Then IMMEDIATELY use the done action with message: 'JOB_CLOSED: This job is no longer accepting applications.'\n"
+                f"- 'Applied X ago' / 'Application submitted'\n"
+                f"- 'Başvurunuz gönderildi' / 'Başvurdunuz'\n"
+                f"Then IMMEDIATELY use the done action with message: 'JOB_CLOSED: <reason>.'\n"
                 f"Do NOT search for apply buttons, do NOT scroll, do NOT extract links. Just report done.\n"
             )
 
