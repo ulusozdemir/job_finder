@@ -48,6 +48,7 @@ jobs:
           APPLICANT_PHONE: ${{ secrets.APPLICANT_PHONE }}
           IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
           HEADLESS: "true"
+          PYTHONIOENCODING: "utf-8"
         run: |
           venv\Scripts\Activate.ps1
           python -m src.applicant.runner
