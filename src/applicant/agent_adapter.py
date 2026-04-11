@@ -11,7 +11,7 @@ AGENT_TIMEOUT_SECONDS = 300
 
 from .base import SCREENSHOT_DIR, ApplicantProfile, ApplyResult, BaseAdapter
 from .email_verifier import fetch_linkedin_verification_code
-from .stealth import _LAUNCH_ARGS, _USER_AGENT
+from .stealth import SESSION_PATH, _LAUNCH_ARGS, _USER_AGENT
 
 logger = logging.getLogger(__name__)
 
@@ -120,12 +120,17 @@ class AgentAdapter(BaseAdapter):
                     error="Verification code not found",
                 )
 
-            browser_profile = BrowserProfile(
+            bp_kwargs: dict = dict(
                 headless=settings.headless,
                 extra_chromium_args=_LAUNCH_ARGS,
                 user_agent=_USER_AGENT,
                 viewport={"width": 1280, "height": 800},
             )
+            if SESSION_PATH.exists():
+                bp_kwargs["storage_state"] = str(SESSION_PATH)
+                logger.info("Loading saved LinkedIn session for agent")
+
+            browser_profile = BrowserProfile(**bp_kwargs)
             cv_abs = str(Path(profile.cv_path).resolve())
 
             SCREENSHOT_DIR.mkdir(exist_ok=True)

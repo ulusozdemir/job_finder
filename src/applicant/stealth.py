@@ -6,9 +6,13 @@ Chrome browser to bot-detection systems (LinkedIn, hCaptcha, etc.).
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from playwright.async_api import BrowserContext, Playwright
 
 from config import settings
+
+SESSION_PATH = Path("linkedin_session.json")
 
 _CHROME_VERSION = "124.0.0.0"
 
@@ -133,6 +137,9 @@ async def create_stealth_context(
 ) -> tuple:
     """Launch browser + context with full stealth.
 
+    If linkedin_session.json exists, loads saved cookies/localStorage
+    so LinkedIn recognises the browser as a returning device.
+
     Returns (browser, context) — caller is responsible for closing.
     """
     browser = await pw.chromium.launch(
@@ -140,7 +147,7 @@ async def create_stealth_context(
         args=_LAUNCH_ARGS,
     )
 
-    context: BrowserContext = await browser.new_context(
+    ctx_kwargs: dict = dict(
         user_agent=_USER_AGENT,
         viewport={"width": 1280, "height": 800},
         locale=locale,
@@ -152,5 +159,9 @@ async def create_stealth_context(
             "Accept-Language": "en-US,en;q=0.9,tr;q=0.8",
         },
     )
+    if SESSION_PATH.exists():
+        ctx_kwargs["storage_state"] = str(SESSION_PATH)
+
+    context: BrowserContext = await browser.new_context(**ctx_kwargs)
     await context.add_init_script(_STEALTH_JS)
     return browser, context

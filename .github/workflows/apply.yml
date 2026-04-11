@@ -23,6 +23,16 @@ jobs:
           pip install -q -r requirements.txt
           playwright install chromium
 
+      - name: Copy LinkedIn session if available
+        run: |
+          $src = "C:\Users\Berke\Desktop\job_finder\linkedin_session.json"
+          if (Test-Path $src) {
+            Copy-Item $src -Destination "linkedin_session.json" -Force
+            Write-Host "LinkedIn session loaded"
+          } else {
+            Write-Host "No saved session found — login will be required"
+          }
+
       - name: Download latest DB from scrape workflow
         uses: dawidd6/action-download-artifact@v6
         with:

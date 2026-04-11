@@ -5,4 +5,5 @@ __pycache__/
 venv/
 jobs.db
 screenshots/
+linkedin_session.json
 test_*.py
