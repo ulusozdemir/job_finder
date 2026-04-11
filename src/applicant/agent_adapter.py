@@ -39,10 +39,12 @@ class AgentAdapter(BaseAdapter):
                 if has_session:
                     login_instructions = (
                         f"You are already logged in to LinkedIn (session cookies loaded).\n"
-                        f"1. Go directly to {url}\n"
-                        f"2. If the page asks you to log in anyway, enter email: {settings.linkedin_email} "
+                        f"1. FIRST navigate to https://www.linkedin.com/feed to activate the session.\n"
+                        f"2. If the feed loads and you see your profile/posts, you are logged in. "
+                        f"Then navigate to {url}\n"
+                        f"3. If the feed redirects to a login page, enter email: {settings.linkedin_email} "
                         f"and password: {settings.linkedin_password}, then click 'Sign in'.\n"
-                        f"3. Click 'Easy Apply' if available, fill any required fields, and submit.\n"
+                        f"4. Click 'Easy Apply' if available, fill any required fields, and submit.\n"
                         f"   If there is no Easy Apply button, look for an external 'Apply' link and follow it.\n\n"
                     )
                 elif settings.linkedin_email and settings.linkedin_password:
