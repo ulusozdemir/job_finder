@@ -67,21 +67,7 @@ jobs:
         if: ${{ github.event.inputs.reset_jobs != '0' && github.event.inputs.reset_jobs != '' }}
         run: |
           venv\Scripts\Activate.ps1
-          python -c @"
-          from src.db.database import init_db, get_session
-          from src.db.models import Job
-          init_db()
-          s = get_session()
-          n = min(int('${{ github.event.inputs.reset_jobs }}'), 5)
-          jobs = s.query(Job).filter(Job.apply_status.in_(['applied', 'failed', 'captcha'])).order_by(Job.applied_at.desc()).limit(n).all()
-          for j in jobs:
-              old = j.apply_status
-              j.apply_status = 'approved'
-              j.applied_at = None
-              print(f'Reset: {j.title} @ {j.company} ({old} -> approved)')
-          s.commit()
-          s.close()
-          "@
+          python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); n = min(int('${{ github.event.inputs.reset_jobs }}'), 5); jobs = s.query(Job).filter(Job.apply_status.in_(['applied', 'failed', 'captcha'])).limit(n).all(); [print(f'Reset: {j.title} @ {j.company} ({j.apply_status} -> approved)') or setattr(j, 'apply_status', 'approved') or setattr(j, 'applied_at', None) for j in jobs]; s.commit(); print(f'Total reset: {len(jobs)}'); s.close()"
 
       - name: Run auto-apply
         env:
