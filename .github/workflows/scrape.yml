@@ -31,6 +31,26 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: warn
 
+      - name: Reset a few jobs for testing
+        run: |
+          python -c "
+          from src.db.database import init_db, get_session
+          from src.db.models import Job
+          init_db()
+          s = get_session()
+          jobs = s.query(Job).filter(Job.match_score >= 60).limit(5).all()
+          for j in jobs:
+              j.notified = False
+              j.match_score = None
+              j.match_reasons = None
+              j.missing_skills = None
+              j.rejection_reason = None
+              j.passed_prefilter = True
+          s.commit()
+          print(f'Reset {len(jobs)} jobs for re-scoring')
+          s.close()
+          "
+
       - name: Run pipeline
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
