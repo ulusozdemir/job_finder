@@ -118,8 +118,21 @@ async def run_applicant() -> None:
     session = get_session()
 
     pending = get_pending_applications()
+
+    # Also pick up jobs already marked 'approved' in the DB (e.g. reset for testing)
+    db_approved = (
+        session.query(Job)
+        .filter(Job.apply_status == "approved")
+        .all()
+    )
+    db_approved_ids = {j.job_id for j in db_approved}
+    telegram_ids = {p["job_id"] for p in pending}
+    for job in db_approved:
+        if job.job_id not in telegram_ids:
+            pending.append({"job_id": job.job_id, "callback_query_id": None})
+
     if not pending:
-        logger.info("No pending applications from Telegram")
+        logger.info("No pending applications from Telegram or DB")
         session.close()
         return
 
@@ -135,7 +148,8 @@ async def run_applicant() -> None:
     if remaining_budget == 0:
         logger.warning("Daily application limit reached (%d)", settings.max_daily_applications)
         for item in pending:
-            answer_callback(item["callback_query_id"], "Daily limit reached, try tomorrow!")
+            if item.get("callback_query_id"):
+                answer_callback(item["callback_query_id"], "Daily limit reached, try tomorrow!")
         session.close()
         return
 
@@ -149,28 +163,35 @@ async def run_applicant() -> None:
     applied_count = 0
     try:
         for item in pending:
+            cb_id = item.get("callback_query_id")
+
             if applied_count >= remaining_budget:
-                answer_callback(item["callback_query_id"], "Daily limit reached!")
+                if cb_id:
+                    answer_callback(cb_id, "Daily limit reached!")
                 continue
 
             job_id = item["job_id"]
             job = session.query(Job).filter(Job.job_id == job_id).first()
             if not job:
                 logger.warning("Job not found in DB: %s", job_id)
-                answer_callback(item["callback_query_id"], "Job not found in database")
+                if cb_id:
+                    answer_callback(cb_id, "Job not found in database")
                 continue
 
             if job.apply_status == "applied":
                 logger.info("Already applied to: %s", job.title)
-                answer_callback(item["callback_query_id"], "Already applied!")
+                if cb_id:
+                    answer_callback(cb_id, "Already applied!")
                 continue
 
             if job.apply_status == "captcha":
                 logger.info("Captcha-blocked, skipping: %s", job.title)
-                answer_callback(item["callback_query_id"], "Captcha — apply manually")
+                if cb_id:
+                    answer_callback(cb_id, "Captcha — apply manually")
                 continue
 
-            answer_callback(item["callback_query_id"], "Applying now...")
+            if cb_id:
+                answer_callback(cb_id, "Applying now...")
 
             result = await _apply_to_job(job, profile, session)
             applied_count += 1
