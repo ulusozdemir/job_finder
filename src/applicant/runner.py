@@ -131,11 +131,16 @@ async def run_applicant() -> None:
         .filter(Job.apply_status == "approved")
         .all()
     )
-    db_approved_ids = {j.job_id for j in db_approved}
     telegram_ids = {p["job_id"] for p in pending}
     for job in db_approved:
         if job.job_id not in telegram_ids:
             pending.append({"job_id": job.job_id, "callback_query_id": None})
+
+    # Deduplicate by job_id — keep the last entry (most recent callback)
+    seen: dict[str, int] = {}
+    for i, item in enumerate(pending):
+        seen[item["job_id"]] = i
+    pending = [pending[i] for i in sorted(seen.values())]
 
     if not pending:
         logger.info("No pending applications from Telegram or DB")
@@ -201,6 +206,10 @@ async def run_applicant() -> None:
                 if cb_id:
                     answer_callback(cb_id, "Job no longer available")
                 continue
+
+            if job.apply_status == "failed":
+                logger.info("Previously failed, retrying: %s", job.title)
+                # Allow retry — don't skip, just log
 
             if cb_id:
                 answer_callback(cb_id, "Applying now...")
