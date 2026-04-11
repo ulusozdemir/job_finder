@@ -53,22 +53,22 @@ def _format_message(
     )
 
 
-def send_alert(message: str) -> bool:
-    """Send a plain-text alert (rate limits, errors, etc.)."""
+def send_alert(message: str, buttons: list[list[dict]] | None = None) -> bool:
+    """Send a plain-text alert with optional inline keyboard buttons."""
     if not settings.telegram_bot_token or not settings.telegram_chat_id:
         return False
 
     api_url = TELEGRAM_API.format(token=settings.telegram_bot_token)
+    payload: dict = {
+        "chat_id": settings.telegram_chat_id,
+        "text": message,
+        "disable_web_page_preview": True,
+    }
+    if buttons:
+        payload["reply_markup"] = json.dumps({"inline_keyboard": buttons})
+
     try:
-        resp = httpx.post(
-            api_url,
-            json={
-                "chat_id": settings.telegram_chat_id,
-                "text": message,
-                "disable_web_page_preview": True,
-            },
-            timeout=15,
-        )
+        resp = httpx.post(api_url, json=payload, timeout=15)
         if resp.status_code == 200:
             return True
         logger.error("Telegram alert error %d: %s", resp.status_code, resp.text)
@@ -87,6 +87,7 @@ def send_job_notification(
     missing_skills: list[str],
     posted_time: str = "",
     work_type: str = "",
+    job_id: str = "",
 ) -> bool:
     if not settings.telegram_bot_token or not settings.telegram_chat_id:
         logger.warning("Telegram credentials not configured, skipping notification")
@@ -98,7 +99,11 @@ def send_job_notification(
     )
     api_url = TELEGRAM_API.format(token=settings.telegram_bot_token)
 
-    inline_keyboard = [[{"text": "🔗 View Job", "url": url}]]
+    inline_keyboard = [[{"text": "\U0001f517 View Job", "url": url}]]
+    if job_id:
+        inline_keyboard.append(
+            [{"text": "\U0001f4e8 Apply", "callback_data": f"apply:{job_id}"}]
+        )
 
     try:
         resp = httpx.post(

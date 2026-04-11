@@ -1,3 +1,22 @@
+# ── Personal Info (used by auto-apply) ────────────────────────
+personal:
+  first_name: "Berke"
+  last_name: "Oden"
+  linkedin_url: "https://www.linkedin.com/in/berkeoden/"
+  location: "Istanbul, Turkey"
+  education: "Bachelor's Degree"
+  university: "Yildiz Technical University"
+  current_company: "Picus Security"
+  nationality: "Turkish"
+  gender: "Male"
+  date_of_birth: "25/05/1999"
+  military_status: "Completed"
+  work_authorization: "Authorized to work in Turkey. Require visa sponsorship for other countries."
+  notice_period: "2 weeks"
+  willing_to_relocate: "Yes"
+  work_mode_preference: "Open to remote, hybrid, and onsite"
+  hear_about_us: "LinkedIn"
+
 # ── Your Profile ──────────────────────────────────────────────
 # The AI scorer uses `summary` + `skills` to rate each job.
 # The pre-filter uses `must_have_any` and `deal_breakers` for fast rejection.
@@ -42,6 +61,9 @@ skills:
   - langchain
   - openai api
   - postman
+
+salary_expectation: "200000 TL net/month"
+english_proficiency: "Professional working proficiency (C1)"
 
 experience_years: 4
 # Jobs requiring more than this many years are auto-rejected by pre-filter.

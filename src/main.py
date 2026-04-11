@@ -264,6 +264,7 @@ async def run() -> None:
                 missing_skills=missing,
                 posted_time=job.posted_time,
                 work_type=job.work_type,
+                job_id=job.job_id,
             )
             if sent:
                 job.notified = True

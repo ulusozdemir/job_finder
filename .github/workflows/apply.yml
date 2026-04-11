@@ -1,0 +1,56 @@
+name: Auto Apply Runner
+
+on:
+  schedule:
+    # Runs every 30 minutes
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  auto-apply:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browsers
+        run: playwright install chromium --with-deps
+
+      - name: Download previous DB
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: jobs-db
+          path: .
+          search_artifacts: true
+          if_no_artifact_found: warn
+
+      - name: Run auto-apply
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          APPLICANT_EMAIL: ${{ secrets.APPLICANT_EMAIL }}
+          APPLICANT_PHONE: ${{ secrets.APPLICANT_PHONE }}
+          HEADLESS: "true"
+        run: python -m src.applicant.runner
+
+      - name: Upload DB artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobs-db
+          path: jobs.db
+          retention-days: 90
+          overwrite: true

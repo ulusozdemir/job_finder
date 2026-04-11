@@ -29,7 +29,16 @@ class Settings(BaseSettings):
     scrape_delay_min: float = 2.0
     scrape_delay_max: float = 5.0
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # Auto-apply settings
+    linkedin_email: str = ""
+    linkedin_password: str = ""
+    applicant_email: str = ""
+    applicant_phone: str = ""
+    cv_path: str = "assets/BERKE ODEN CV.pdf"
+    max_daily_applications: int = 20
+    headless: bool = True
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()
