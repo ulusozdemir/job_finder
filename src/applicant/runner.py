@@ -95,11 +95,7 @@ async def _apply_to_job(
         job.apply_status = "closed"
         session.commit()
         logger.info("Job closed/expired: %s @ %s", job.title, job.company)
-        return ApplyResult(
-            success=False,
-            message="job_closed",
-            adapter_used=result.adapter_used,
-        )
+        return result
 
     # Update DB
     if result.success:
@@ -214,12 +210,13 @@ async def run_applicant() -> None:
 
             job_url = job.url or ""
 
-            if result.message == "job_closed":
-                logger.info("Job closed: %s @ %s — skipping", job.title, job.company)
+            if result.message.startswith("job_closed"):
+                reason = result.message.split(":", 1)[1].strip() if ":" in result.message else "Job is no longer available"
+                logger.info("Job closed: %s @ %s — %s", job.title, job.company, reason)
                 send_alert(
-                    f"\U0001f6ab Job closed\n\n"
+                    f"\U0001f6ab Job unavailable\n\n"
                     f"{job.title} @ {job.company}\n"
-                    f"This job is no longer accepting applications.",
+                    f"{reason}",
                     buttons=[[{"text": "\U0001f517 View Job", "url": job_url}]] if job_url else None,
                 )
                 continue

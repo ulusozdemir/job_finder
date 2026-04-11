@@ -617,9 +617,10 @@ class AgentAdapter(BaseAdapter):
                 )
 
             if "job_closed" in result_text:
+                reason = str(final_result).split("JOB_CLOSED:")[-1].strip()[:200] if "JOB_CLOSED:" in str(final_result) else "Job is no longer available"
                 return ApplyResult(
                     success=False,
-                    message="job_closed",
+                    message=f"job_closed:{reason}",
                     adapter_used=self.name,
                 )
 
