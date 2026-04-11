@@ -75,9 +75,14 @@ async def _apply_to_job(
         logger.info("Re-routing to %s adapter", adapter.name)
         result = await adapter.apply(target_url, profile)
 
-    # Captcha detected — don't waste time with agent, notify user directly
-    is_captcha = "captcha" in result.message.lower()
-    if is_captcha:
+    # Fallback to AI agent if rule-based adapter failed
+    if not result.success and adapter_key != "agent":
+        logger.info("Rule-based adapter failed, falling back to AI agent")
+        agent = _ADAPTERS["agent"]
+        result = await agent.apply(target_url, profile)
+
+    # After all attempts, if captcha is the final result, mark accordingly
+    if not result.success and "captcha" in result.message.lower():
         job.apply_status = "captcha"
         session.commit()
         return ApplyResult(
@@ -85,12 +90,6 @@ async def _apply_to_job(
             message=f"captcha:{target_url}",
             adapter_used=result.adapter_used,
         )
-
-    # Fallback to AI agent if rule-based adapter failed (non-captcha)
-    if not result.success and adapter_key != "agent":
-        logger.info("Rule-based adapter failed, falling back to AI agent")
-        agent = _ADAPTERS["agent"]
-        result = await agent.apply(target_url, profile)
 
     # Update DB
     if result.success:
