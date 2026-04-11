@@ -109,6 +109,8 @@ async def run_applicant() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[logging.StreamHandler(sys.stdout)],
     )
+    # Suppress noisy browser-use storage_state+user_data_dir warnings
+    logging.getLogger("browser_use.utils").setLevel(logging.ERROR)
 
     logger.info("=== Auto-Apply Runner Starting ===")
     init_db()

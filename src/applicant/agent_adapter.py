@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 
 MAX_AGENT_STEPS = 25
-AGENT_TIMEOUT_SECONDS = 300
+AGENT_TIMEOUT_SECONDS = 420
 
 from .base import SCREENSHOT_DIR, ApplicantProfile, ApplyResult, BaseAdapter
 from .email_verifier import fetch_linkedin_verification_code
@@ -118,10 +118,20 @@ class AgentAdapter(BaseAdapter):
                 f"- Do NOT report CAPTCHA_BLOCKED just because you see a security check page. "
                 f"Try to complete it first.\n"
                 f"Do NOT keep retrying the same action if it triggers a login popup — report failure instead. "
-                f"If there are required fields you cannot fill, skip them and note them."
+                f"If there are required fields you cannot fill, skip them and note them.\n\n"
+                f"CUSTOM FORM INTERACTION TOOLS:\n"
+                f"If clicking a form element (radio button, checkbox, dropdown option) does NOT work "
+                f"after 2 normal click attempts, use 'force_click_element' with the element's visible "
+                f"text. Example: force_click_element(text=\"No\") or force_click_element(text=\"Male\").\n"
+                f"If force_click_element also fails, use 'set_form_value' with the element's CSS selector "
+                f"and the desired value. Example: set_form_value(selector=\"input[name='salary']\", value=\"200000\").\n"
+                f"NEVER attempt the same click action more than 3 times — if it doesn't work, "
+                f"switch to force_click_element or set_form_value instead. "
+                f"If ALL methods fail for a field after 3-4 total attempts, skip it and move on."
             )
 
             from browser_use import ActionResult, Tools
+            from browser_use.browser.session import BrowserSession
 
             tools = Tools()
 
@@ -139,6 +149,93 @@ class AgentAdapter(BaseAdapter):
                     extracted_content="Could not fetch verification code from email. Report CAPTCHA_BLOCKED.",
                     error="Verification code not found",
                 )
+
+            @tools.action(description=(
+                "Force-click an element using JavaScript when normal click doesn't work. "
+                "Useful for custom UI frameworks like Workday where standard clicks fail. "
+                "Provide EITHER a CSS selector OR the visible text of the element (not both). "
+                "This dispatches real mouse events (mousedown, mouseup, click, change)."
+            ))
+            async def force_click_element(
+                browser_session: BrowserSession,
+                selector: str = "",
+                text: str = "",
+            ) -> ActionResult:
+                page = await browser_session.get_current_page()
+                if not page:
+                    return ActionResult(extracted_content="No active page found")
+                js = """(args) => {
+                    let el;
+                    if (args.selector) el = document.querySelector(args.selector);
+                    if (!el && args.text) {
+                        const all = [...document.querySelectorAll('*')];
+                        el = all.find(e =>
+                            e.textContent.trim() === args.text
+                            && e.offsetParent !== null
+                        );
+                        if (!el) {
+                            el = all.find(e =>
+                                e.textContent.trim().includes(args.text)
+                                && e.offsetParent !== null
+                                && e.children.length === 0
+                            );
+                        }
+                    }
+                    if (!el) return 'Element not found';
+                    el.scrollIntoView({block: 'center'});
+                    const rect = el.getBoundingClientRect();
+                    const opts = {bubbles: true, cancelable: true,
+                                  clientX: rect.x + rect.width/2,
+                                  clientY: rect.y + rect.height/2};
+                    ['pointerdown','mousedown','pointerup','mouseup','click'].forEach(type =>
+                        el.dispatchEvent(new PointerEvent(type, opts))
+                    );
+                    el.dispatchEvent(new Event('input',  {bubbles: true}));
+                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                    el.focus && el.focus();
+                    return 'Clicked: ' + el.tagName + ' ' + el.textContent.trim().slice(0, 60);
+                }"""
+                result = await page.evaluate(js, {"selector": selector, "text": text})
+                logger.info("force_click_element result: %s", result)
+                return ActionResult(extracted_content=str(result))
+
+            @tools.action(description=(
+                "Set a form field value using JavaScript. Works for hidden inputs, "
+                "custom dropdowns, and React/Angular-controlled components. "
+                "Provide a CSS selector and the value to set. "
+                "Use this when normal typing or force_click_element don't work."
+            ))
+            async def set_form_value(
+                browser_session: BrowserSession,
+                selector: str,
+                value: str,
+            ) -> ActionResult:
+                page = await browser_session.get_current_page()
+                if not page:
+                    return ActionResult(extracted_content="No active page found")
+                js = """(args) => {
+                    const el = document.querySelector(args.selector);
+                    if (!el) return 'Element not found: ' + args.selector;
+                    const proto = el.tagName === 'TEXTAREA'
+                        ? window.HTMLTextAreaElement.prototype
+                        : el.tagName === 'SELECT'
+                            ? window.HTMLSelectElement.prototype
+                            : window.HTMLInputElement.prototype;
+                    const nativeSet = Object.getOwnPropertyDescriptor(proto, 'value');
+                    if (nativeSet && nativeSet.set) {
+                        nativeSet.set.call(el, args.value);
+                    } else {
+                        el.value = args.value;
+                    }
+                    el.setAttribute('value', args.value);
+                    el.dispatchEvent(new Event('input',  {bubbles: true}));
+                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                    el.dispatchEvent(new Event('blur',   {bubbles: true}));
+                    return 'Set value to: ' + args.value + ' on ' + el.tagName;
+                }"""
+                result = await page.evaluate(js, {"selector": selector, "value": value})
+                logger.info("set_form_value result: %s", result)
+                return ActionResult(extracted_content=str(result))
 
             bp_kwargs: dict = dict(
                 headless=settings.headless,
@@ -164,6 +261,7 @@ class AgentAdapter(BaseAdapter):
                 available_file_paths=[cv_abs],
                 save_conversation_path=str(SCREENSHOT_DIR / "agent_conversation.json"),
                 max_steps=MAX_AGENT_STEPS,
+                loop_detection_enabled=True,
             )
             result = await asyncio.wait_for(
                 agent.run(), timeout=AGENT_TIMEOUT_SECONDS
