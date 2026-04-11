@@ -81,7 +81,7 @@ jobs:
         if: ${{ github.event.inputs.reset_jobs != '0' && github.event.inputs.reset_jobs != '' }}
         run: |
           venv\Scripts\Activate.ps1
-          python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); n = min(int('${{ github.event.inputs.reset_jobs }}'), 5); cleared = s.query(Job).filter(Job.apply_status == 'approved').update({Job.apply_status: 'not_applied'}); print(f'Cleared {cleared} old approved jobs'); jobs = s.query(Job).filter(Job.apply_status.in_(['applied', 'failed', 'captcha']), Job.match_score >= 60).limit(n).all(); jobs = jobs or s.query(Job).filter(Job.notified == True, Job.apply_status == 'not_applied', Job.match_score >= 60).order_by(Job.match_score.desc()).limit(n).all(); [print(f'Reset: {j.title} @ {j.company} ({j.apply_status} -> approved)') or setattr(j, 'apply_status', 'approved') or setattr(j, 'applied_at', None) for j in jobs]; s.commit(); print(f'Total reset: {len(jobs)}'); s.close()"
+          python -c "from sqlalchemy.sql.expression import func; from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); n = min(int('${{ github.event.inputs.reset_jobs }}'), 5); jobs = s.query(Job).filter(Job.apply_status == 'not_applied', Job.match_score >= 60).order_by(func.random()).limit(n).all(); [print(f'Pick: {j.title} @ {j.company} (score={j.match_score})') or setattr(j, 'apply_status', 'approved') for j in jobs]; s.commit(); print(f'Total picked: {len(jobs)}'); s.close()"
 
       - name: Run auto-apply
         env:
