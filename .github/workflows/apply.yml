@@ -12,16 +12,13 @@ jobs:
       run:
         shell: powershell
 
-    env:
-      PYTHON: "C:\\Users\\Berke\\AppData\\Local\\Programs\\Python\\Python313\\python.exe"
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup venv and install dependencies
         run: |
-          if (-not (Test-Path "venv")) { & $env:PYTHON -m venv venv }
+          if (-not (Test-Path "venv")) { python -m venv venv }
           venv\Scripts\Activate.ps1
           pip install -q -r requirements.txt
           playwright install chromium
