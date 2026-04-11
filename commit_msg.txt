@@ -1,5 +1,0 @@
-fix: remove experience-year regex from prefilter, improve rejected job notifications
-
-- Remove false-positive prone experience year regex (e.g. "2019 yılında" matched as 2019 years)
-- Rejected jobs now sent as formatted cards with score, reason, and View Job button
-- Playwright browser caching in CI workflow
