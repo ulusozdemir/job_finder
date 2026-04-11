@@ -49,8 +49,16 @@ jobs:
             Write-Host "No saved session found - login will be required"
           }
 
-      - name: Download DB artifact (only if no local DB)
-        if: ${{ hashFiles('jobs.db') == '' }}
+      - name: Backup local DB apply statuses
+        run: |
+          if (Test-Path "jobs.db") {
+            venv\Scripts\Activate.ps1
+            python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); rows = s.query(Job.job_id, Job.apply_status, Job.applied_at).filter(Job.apply_status != 'not_applied').all(); import json; open('_apply_backup.json','w').write(json.dumps([{'jid':r[0],'st':r[1],'at':str(r[2]) if r[2] else None} for r in rows])); print(f'Backed up {len(rows)} apply statuses'); s.close()"
+          } else {
+            Write-Host "No local DB yet"
+          }
+
+      - name: Download latest DB from scrape
         uses: dawidd6/action-download-artifact@v6
         with:
           name: jobs-db
@@ -58,6 +66,11 @@ jobs:
           search_artifacts: true
           if_no_artifact_found: warn
           workflow: scrape.yml
+
+      - name: Restore apply statuses into downloaded DB
+        run: |
+          venv\Scripts\Activate.ps1
+          python -c "import json, os; from datetime import datetime; from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); f='_apply_backup.json'; rows = json.loads(open(f).read()) if os.path.exists(f) else []; [setattr(j, 'apply_status', r['st']) or (setattr(j, 'applied_at', datetime.fromisoformat(r['at'])) if r['at'] and r['at']!='None' else None) for r in rows if (j := s.query(Job).filter(Job.job_id == r['jid']).first())]; s.commit(); print(f'Restored {len(rows)} apply statuses'); s.close()"
 
       - name: Verify DB exists
         run: |
