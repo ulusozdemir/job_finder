@@ -61,17 +61,12 @@ async def _login(page: Page) -> bool:
 
         await take_screenshot(page, "linkedin", "after_login")
 
-        captcha = page.locator('iframe[src*="captcha"], iframe[src*="challenge"], #captcha, [class*="captcha"]')
-        if await captcha.count() > 0:
-            logger.warning("Captcha detected on LinkedIn login")
-            await take_screenshot(page, "linkedin", "login_captcha")
-            return False
-
         if "/feed" in page.url or "/mynetwork" in page.url or "/jobs" in page.url:
             logger.info("LinkedIn login successful")
             return True
 
-        # Email verification challenge
+        # Email verification challenge (check BEFORE captcha -- the page
+        # may contain "challenge" iframes that are NOT captchas)
         if "checkpoint" in page.url or "challenge" in page.url:
             await take_screenshot(page, "linkedin", "verification_page")
             code_input = page.locator('input#input__email_verification_pin, input[name="pin"]')
@@ -98,6 +93,15 @@ async def _login(page: Page) -> bool:
                     logger.warning("Could not fetch verification code from email")
                     return False
 
+        # Real CAPTCHA detection (narrow selectors -- exclude "challenge" iframes)
+        captcha = page.locator('iframe[src*="captcha"], iframe[src*="hcaptcha"], iframe[src*="recaptcha"], #captcha, .captcha')
+        if await captcha.count() > 0:
+            logger.warning("Captcha detected on LinkedIn login")
+            await take_screenshot(page, "linkedin", "login_captcha")
+            return False
+
+        # Generic security challenge without email verification input
+        if "checkpoint" in page.url or "challenge" in page.url:
             logger.warning("LinkedIn security challenge detected — login blocked")
             await take_screenshot(page, "linkedin", "challenge_blocked")
             return False
