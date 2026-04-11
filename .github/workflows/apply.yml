@@ -5,10 +5,6 @@ on:
     - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
-      reset_jobs:
-        description: "Number of random jobs to pick for testing (0 = none)"
-        required: false
-        default: "0"
       test_url:
         description: "Direct job URL to test (overrides everything else)"
         required: false
@@ -79,19 +75,13 @@ jobs:
       - name: Verify DB exists
         run: |
           venv\Scripts\Activate.ps1
-          python -c "from src.db.database import init_db, get_session; from src.db.models import Job; from sqlalchemy import func; init_db(); s = get_session(); print(f'Jobs in DB: {s.query(Job).count()}'); [print(f'  {st}: {cnt}') for st, cnt in s.query(Job.apply_status, func.count()).group_by(Job.apply_status).all()]; s.close()"
+          python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); print(f'Jobs in DB: {s.query(Job).count()}'); s.close()"
 
       - name: Insert test URL as approved job
         if: ${{ github.event.inputs.test_url != '' }}
         run: |
           venv\Scripts\Activate.ps1
           python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); url='${{ github.event.inputs.test_url }}'; j = s.query(Job).filter(Job.url == url).first(); j = j or Job(job_id='test_'+str(hash(url))[-8:], title='Test Job', company='Test', url=url, passed_prefilter=True, match_score=99); j.apply_status='approved'; j.applied_at=None; s.merge(j); s.commit(); print(f'Ready to apply: {j.title} @ {j.company} -> {url}'); s.close()"
-
-      - name: Reset jobs for testing
-        if: ${{ github.event.inputs.test_url == '' && github.event.inputs.reset_jobs != '0' && github.event.inputs.reset_jobs != '' }}
-        run: |
-          venv\Scripts\Activate.ps1
-          python -c "from sqlalchemy.sql.expression import func; from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); n = min(int('${{ github.event.inputs.reset_jobs }}'), 5); jobs = s.query(Job).filter(Job.apply_status == 'not_applied', Job.match_score >= 60).order_by(func.random()).limit(n).all(); [print(f'Pick: {j.title} @ {j.company} (score={j.match_score})') or setattr(j, 'apply_status', 'approved') for j in jobs]; s.commit(); print(f'Total picked: {len(jobs)}'); s.close()"
 
       - name: Run auto-apply
         env:
