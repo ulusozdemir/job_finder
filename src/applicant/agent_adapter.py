@@ -767,20 +767,15 @@ class AgentAdapter(BaseAdapter):
                     else:
                         await _cdp_type(browser_session, page, value)
 
-                    await page.evaluate("""() => {
+                    actual = await page.evaluate("""() => {
                         const el = document.activeElement;
-                        if (!el) return;
+                        if (!el) return '';
+                        const val = el.value !== undefined ? el.value : (el.textContent || '');
                         el.dispatchEvent(new Event('input', {bubbles: true}));
                         el.dispatchEvent(new Event('change', {bubbles: true}));
                         el.dispatchEvent(new Event('blur', {bubbles: true}));
                         el.dispatchEvent(new FocusEvent('focusout', {bubbles: true}));
-                    }""")
-
-                    actual = await page.evaluate("""() => {
-                        const el = document.activeElement ||
-                            document.querySelector(':focus');
-                        if (!el) return '';
-                        return el.value || el.textContent || '';
+                        return val;
                     }""")
                     msg = (
                         f"Filled {info.get('tag','')} (label='{label}', name='{info.get('name','')}') "
