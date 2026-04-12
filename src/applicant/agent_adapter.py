@@ -160,6 +160,16 @@ class AgentAdapter(BaseAdapter):
                 f"above it that needs to be filled first. Fill the parent, then retry the child.\n"
                 f"- GENERAL RULE: When you see a group of related dropdowns, always fill them "
                 f"from top to bottom, left to right, as they appear in the form layout.\n\n"
+                f"PRE-FILLED DROPDOWNS (CRITICAL):\n"
+                f"Some dropdown/autocomplete fields appear to have a value already filled in "
+                f"(e.g. 'Current Country' shows 'Türkiye') but the value is NOT actually selected in the "
+                f"framework's internal state. Dependent child fields (like 'Current City') will show NO options "
+                f"until the parent is actively selected from the dropdown.\n"
+                f"RULE: Even if a dropdown field already displays a value, you MUST still use "
+                f"autocomplete_select to open the dropdown, type the value, and select it from the suggestions. "
+                f"This ensures the framework registers the selection and loads dependent options.\n"
+                f"Example: 'Current Country' shows 'Türkiye' → still call "
+                f"autocomplete_select(label='Current Country', value='Türkiye') → then fill 'Current City'.\n\n"
                 f"FORM FILLING RULES (CRITICAL):\n"
                 f"- For ALL text input fields (name, email, phone, address, textarea, etc.), "
                 f"use fill_text_field(label='Field Label', value='...'). "
@@ -656,8 +666,7 @@ class AgentAdapter(BaseAdapter):
                 for ch in text:
                     await client.send_raw(
                         "Input.dispatchKeyEvent",
-                        {"type": "keyDown", "key": ch, "code": "",
-                         "text": ch, "unmodifiedText": ch},
+                        {"type": "keyDown", "key": ch, "code": ""},
                         session_id=sid,
                     )
                     await client.send_raw(
@@ -860,9 +869,9 @@ class AgentAdapter(BaseAdapter):
                 const pick = exact || startsWith || includes;
                 if (pick) {
                     pick.scrollIntoView({block: 'center'});
+                    pick.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, cancelable: true}));
+                    pick.dispatchEvent(new MouseEvent('mouseup', {bubbles: true, cancelable: true}));
                     pick.click();
-                    pick.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
-                    pick.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
                     return 'Selected: ' + pick.textContent.trim().substring(0, 80);
                 }
 
@@ -943,6 +952,25 @@ class AgentAdapter(BaseAdapter):
                         logger.info(msg)
                         return ActionResult(extracted_content=msg)
 
+                    rect = await page.evaluate("""() => {
+                        const el = document.activeElement;
+                        if (!el) return null;
+                        const r = el.getBoundingClientRect();
+                        return {x: r.x + r.width / 2, y: r.y + r.height / 2};
+                    }""")
+                    cdp_bs = await browser_session.get_or_create_cdp_session()
+                    _client = cdp_bs.cdp_client
+                    _sid = cdp_bs.session_id
+                    if rect:
+                        for mtype in ("mousePressed", "mouseReleased"):
+                            await _client.send_raw(
+                                "Input.dispatchMouseEvent",
+                                {"type": mtype, "x": int(rect["x"]), "y": int(rect["y"]),
+                                 "button": "left", "clickCount": 1},
+                                session_id=_sid,
+                            )
+                        await _aio.sleep(0.35)
+
                     await page.evaluate("""() => {
                         const el = document.activeElement;
                         if (!el) return;
@@ -957,17 +985,15 @@ class AgentAdapter(BaseAdapter):
                             if (sv) sv.style.display = 'none';
                         }
                     }""")
-                    import asyncio as _aio2
-                    cdp_bs = await browser_session.get_or_create_cdp_session()
                     for _ in range(2):
                         for _et in ("keyDown", "keyUp"):
-                            await cdp_bs.cdp_client.send_raw(
+                            await _client.send_raw(
                                 "Input.dispatchKeyEvent",
                                 {"type": _et, "key": "Backspace", "code": "Backspace",
                                  "windowsVirtualKeyCode": 8, "nativeVirtualKeyCode": 8},
-                                session_id=cdp_bs.session_id,
+                                session_id=_sid,
                             )
-                        await _aio2.sleep(0.15)
+                        await _aio.sleep(0.15)
 
                     await _cdp_type_char_by_char(
                         browser_session, page, value, delay_ms=45, clear=False
