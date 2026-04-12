@@ -165,40 +165,47 @@ class AgentAdapter(BaseAdapter):
                 f"(e.g. 'Current Country' shows 'Türkiye') but the value is NOT actually selected in the "
                 f"framework's internal state. Dependent child fields (like 'Current City') will show NO options "
                 f"until the parent is actively selected from the dropdown.\n"
-                f"RULE: Even if a dropdown field already displays a value, you MUST still use "
-                f"autocomplete_select to open the dropdown, type the value, and select it from the suggestions. "
-                f"This ensures the framework registers the selection and loads dependent options.\n"
-                f"Example: 'Current Country' shows 'Türkiye' → still call "
-                f"autocomplete_select(label='Current Country', value='Türkiye') → then fill 'Current City'.\n\n"
+                f"RULE: Even if a dropdown field already displays a value, you MUST click on it, "
+                f"type the value using 'input', and select it from the suggestions that appear. "
+                f"This ensures the framework registers the selection and loads dependent options.\n\n"
                 f"FORM FILLING RULES (CRITICAL):\n"
                 f"- For ALL text input fields (name, email, phone, address, textarea, etc.), "
                 f"use fill_text_field(label='Field Label', value='...'). "
                 f"This is the PREFERRED method — it finds fields by label text and does NOT need element indices. "
                 f"It also works for date inputs, number inputs, contenteditable divs, and native <select>.\n"
-                f"- For DROPDOWN / AUTOCOMPLETE fields (City, Country, Skill, Language level, etc.), "
-                f"use autocomplete_select(label='Field Label', value='...'). "
-                f"It types the value char-by-char to trigger suggestions and clicks the best match.\n"
-                f"- For native <select> dropdowns: use set_form_value(selector, value). "
-                f"Also works for checkboxes (pass 'true'/'false'), radio buttons, date/time/range/color inputs, "
-                f"hidden inputs, and contenteditable elements.\n\n"
+                f"- For DROPDOWN / AUTOCOMPLETE / TYPEAHEAD fields (City, Country, Skill, Language level, etc.), "
+                f"use the 'input' action to type the value into the field, then 'click' the matching option "
+                f"from the screenshot. Do NOT use fill_text_field for these — it dispatches blur which closes dropdowns.\n"
+                f"- For native HTML <select> dropdowns: use native_select(label=..., value=...).\n"
+                f"- For checkboxes/radios/hidden inputs: use set_form_value(selector, value).\n\n"
+                f"DROPDOWN FIELDS — HOW TO FILL (ALWAYS follow this pattern):\n"
+                f"For ANY dropdown, autocomplete, or typeahead field (React Select, custom dropdowns, etc.):\n"
+                f"  Step 1: Click on the dropdown field to focus it.\n"
+                f"  Step 2: Use 'input' action with clear=True to type the value.\n"
+                f"  Step 3: Wait for suggestions to appear in the screenshot.\n"
+                f"  Step 4: Click the matching suggestion from the screenshot.\n"
+                f"  Step 5: If no suggestions appear, SKIP the field and move on.\n"
+                f"MAXIMUM 2 attempts per dropdown field. Then SKIP.\n"
+                f"Examples of dropdown fields: Current Country, Current City, Preferred work countries, "
+                f"Primary skill, English level, Notice period, Mahalle/Köy, Şehir, Ülke.\n\n"
                 f"ONE-STRIKE RULE (ABSOLUTE — NEVER VIOLATE):\n"
-                f"If fill_text_field or autocomplete_select returns a FAILURE or NO_SUGGESTIONS for a field:\n"
-                f"  1. Do NOT call the same tool again for that field. It will ALWAYS fail again.\n"
+                f"If fill_text_field returns a FAILURE for a field:\n"
+                f"  1. Do NOT call fill_text_field again for that field.\n"
                 f"  2. IMMEDIATELY use the 'input' action with the element INDEX from the CURRENT screenshot.\n"
-                f"  3. For dropdowns: after 'input', wait 2 seconds, then 'click' the matching option VISIBLE in the screenshot.\n"
-                f"  4. If that ALSO fails, SKIP the field entirely and move to the next field.\n"
-                f"  5. MAXIMUM 2 total attempts per field (1 tool call + 1 fallback). Then SKIP.\n\n"
+                f"  3. If that ALSO fails, SKIP the field entirely and move to the next field.\n"
+                f"  4. MAXIMUM 2 total attempts per field. Then SKIP.\n\n"
                 f"BANNED ACTIONS (NEVER USE THESE):\n"
                 f"- find_elements — NEVER use it. It wastes steps and returns irrelevant page elements.\n"
                 f"- search_page — NEVER use it.\n"
-                f"- evaluate with querySelectorAll('[role=\"option\"]') — NEVER manually search for dropdown options. "
-                f"The autocomplete_select tool already handles this internally.\n"
+                f"- extract — NEVER use it to read dropdown options. Just look at the screenshot.\n"
+                f"- evaluate with querySelectorAll('[role=\"option\"]') — NEVER manually search for dropdown options.\n"
                 f"- DO NOT write loops or retry logic in evaluate() to find dropdown options.\n"
-                f"- DO NOT call find_elements repeatedly with different selectors for the same field.\n\n"
+                f"- DO NOT call find_elements repeatedly with different selectors for the same field.\n"
+                f"- DO NOT use fill_text_field on dropdown/autocomplete fields — it dispatches blur and closes them.\n\n"
                 f"FIELD TYPE HANDLING:\n"
                 f"- Plain text inputs: fill_text_field(label=..., value=...)\n"
-                f"- Autocomplete/typeahead: autocomplete_select(label=..., value=...)\n"
-                f"- Native <select>: set_form_value(selector='select[name=\"...\"]', value='...')\n"
+                f"- Dropdown/autocomplete/typeahead: 'input' action to type → 'click' on option from screenshot\n"
+                f"- Native HTML <select>: native_select(label=..., value=...)\n"
                 f"- Radio buttons: force_click_element(text='option text'). Only pass text=, never selector='div'.\n"
                 f"- Checkboxes: force_click_element(text='short label text'). "
                 f"Keep text SHORT (first 20-30 chars). Example: force_click_element(text='Evet, hüküm ve koşul'). "
@@ -214,16 +221,7 @@ class AgentAdapter(BaseAdapter):
                 f"VALIDATION ERRORS: When you click 'İleri'/'Next' and see errors, "
                 f"read EACH error message carefully. They may be about DIFFERENT fields. "
                 f"Do NOT assume all errors are about the last field you edited. "
-                f"Fix each specific field mentioned in the error.\n\n"
-                f"AUTOCOMPLETE / TYPEAHEAD FIELDS (Mahalle/Köy, Şehir, Ülke, etc.):\n"
-                f"Use the autocomplete_select tool for these fields. It types char-by-char, "
-                f"waits for suggestions, and clicks the best match automatically. Examples:\n"
-                f"  autocomplete_select(label='Mahalle/Köy', value='Etimesgut')\n"
-                f"  autocomplete_select(label='Şehir', value='Ankara')\n"
-                f"  autocomplete_select(label='Primary skill', value='Python')\n"
-                f"  autocomplete_select(label='Current City', value='Ankara')\n"
-                f"If autocomplete_select returns NO_SUGGESTIONS, use 'input' to type and 'click' the option "
-                f"from the screenshot. If that also fails, SKIP and move on. NEVER spend more than 2 steps on one autocomplete field."
+                f"Fix each specific field mentioned in the error."
             )
 
             from browser_use import ActionResult, Tools
@@ -908,15 +906,13 @@ class AgentAdapter(BaseAdapter):
             }"""
 
             @tools.action(description=(
-                "Type into an autocomplete/typeahead/dropdown field and click the matching suggestion. "
-                "Works with React Select, Workday, Material UI, Ant Design, Choices.js, jQuery UI, "
-                "Google Places, and standard HTML dropdowns/datalists. "
-                "Use for fields like City, Country, Skill, Language level, Notice period — "
-                "any field that shows a dropdown/suggestions after typing. "
-                "Finds the input by label text, types the value char-by-char to trigger suggestions, "
-                "waits, and clicks the best match."
+                "Select a value from a native HTML <select> dropdown by label. "
+                "Only works for native <select> elements — NOT for React Select, "
+                "custom dropdowns, or autocomplete fields. "
+                "For custom dropdowns (React Select, etc.), use the 'input' action to type "
+                "and then 'click' the matching option from the screenshot."
             ))
-            async def autocomplete_select(
+            async def native_select(
                 browser_session,
                 label: str = "",
                 name: str = "",
@@ -927,116 +923,37 @@ class AgentAdapter(BaseAdapter):
                     return ActionResult(extracted_content="No active page found")
                 try:
                     import json as _json
-                    import asyncio as _aio
-
                     raw = await page.evaluate(_FIND_INPUT_JS, {"label": label, "name": name})
                     info = _json.loads(raw) if isinstance(raw, str) else (raw or {})
                     if not info.get("found"):
-                        msg = f"autocomplete_select: field not found: label='{label}', name='{name}'"
-                        logger.warning(msg)
-                        return ActionResult(extracted_content=msg)
-
-                    if info.get("isSelect"):
-                        select_js = """(args) => {
-                            const el = document.activeElement;
-                            if (!el || el.tagName !== 'SELECT') return 'NOT_SELECT';
-                            const val = args.value.toLowerCase();
-                            for (const opt of el.options) {
-                                if (opt.text.toLowerCase().includes(val) ||
-                                    opt.value.toLowerCase().includes(val)) {
-                                    el.value = opt.value;
-                                    el.dispatchEvent(new Event('change', {bubbles: true}));
-                                    return 'Selected: ' + opt.text;
-                                }
+                        return ActionResult(
+                            extracted_content=f"native_select: field not found: label='{label}', name='{name}'"
+                        )
+                    if not info.get("isSelect"):
+                        return ActionResult(
+                            extracted_content=f"native_select: field is not a <select> element. "
+                            f"Use 'input' action to type into the field, then 'click' the option."
+                        )
+                    select_js = """(args) => {
+                        const el = document.activeElement;
+                        if (!el || el.tagName !== 'SELECT') return 'NOT_SELECT';
+                        const val = args.value.toLowerCase();
+                        for (const opt of el.options) {
+                            if (opt.text.toLowerCase().includes(val) ||
+                                opt.value.toLowerCase().includes(val)) {
+                                el.value = opt.value;
+                                el.dispatchEvent(new Event('change', {bubbles: true}));
+                                return 'Selected: ' + opt.text;
                             }
-                            return 'NO_MATCH';
-                        }"""
-                        result = await page.evaluate(select_js, {"value": value})
-                        msg = f"autocomplete_select(label='{label}', value='{value}'): {result}"
-                        logger.info(msg)
-                        return ActionResult(extracted_content=msg)
-
-                    rect_raw = await page.evaluate("""() => {
-                        const el = document.activeElement;
-                        if (!el) return null;
-                        const r = el.getBoundingClientRect();
-                        return {x: r.x + r.width / 2, y: r.y + r.height / 2};
-                    }""")
-                    rect = _json.loads(rect_raw) if isinstance(rect_raw, str) else rect_raw
-                    cdp_bs = await browser_session.get_or_create_cdp_session()
-                    _client = cdp_bs.cdp_client
-                    _sid = cdp_bs.session_id
-                    if rect:
-                        for mtype in ("mousePressed", "mouseReleased"):
-                            await _client.send_raw(
-                                "Input.dispatchMouseEvent",
-                                {"type": mtype, "x": int(rect["x"]), "y": int(rect["y"]),
-                                 "button": "left", "clickCount": 1},
-                                session_id=_sid,
-                            )
-                        await _aio.sleep(0.35)
-
-                    await page.evaluate("""() => {
-                        const el = document.activeElement;
-                        if (!el) return;
-                        const container = el.closest(
-                            '[class*="dropdown__control"], [class*="select__control"], ' +
-                            '[class*="css-"][class*="-control"]'
-                        );
-                        if (container) {
-                            const sv = container.querySelector(
-                                '[class*="single-value"], [class*="singleValue"]'
-                            );
-                            if (sv) sv.style.display = 'none';
                         }
-                    }""")
-                    for _ in range(2):
-                        for _et in ("keyDown", "keyUp"):
-                            await _client.send_raw(
-                                "Input.dispatchKeyEvent",
-                                {"type": _et, "key": "Backspace", "code": "Backspace",
-                                 "windowsVirtualKeyCode": 8, "nativeVirtualKeyCode": 8},
-                                session_id=_sid,
-                            )
-                        await _aio.sleep(0.15)
-
-                    await _cdp_type_char_by_char(
-                        browser_session, page, value, delay_ms=45, clear=False
-                    )
-
-                    result = "NO_SUGGESTIONS"
-                    for wait in (1.0, 1.5, 2.0):
-                        await _aio.sleep(wait)
-                        result = await page.evaluate(_CLICK_OPTION_JS, {"value": value})
-                        if result != "NO_SUGGESTIONS":
-                            break
-
-                    if result == "NO_SUGGESTIONS":
-                        await _cdp_clear_field(browser_session, page)
-                        await _cdp_type_char_by_char(browser_session, page, value, delay_ms=60)
-                        for wait2 in (1.5, 2.0, 2.5):
-                            await _aio.sleep(wait2)
-                            result = await page.evaluate(_CLICK_OPTION_JS, {"value": value})
-                            if result != "NO_SUGGESTIONS":
-                                break
-
-                    msg = f"autocomplete_select(label='{label}', value='{value}'): {result}"
+                        return 'NO_MATCH';
+                    }"""
+                    result = await page.evaluate(select_js, {"value": value})
+                    msg = f"native_select(label='{label}', value='{value}'): {result}"
                     logger.info(msg)
-
-                    if result == "NO_SUGGESTIONS":
-                        cdp_s = await browser_session.get_or_create_cdp_session()
-                        for etype in ("keyDown", "keyUp"):
-                            await cdp_s.cdp_client.send_raw(
-                                "Input.dispatchKeyEvent",
-                                {"type": etype, "key": "Enter", "code": "Enter",
-                                 "windowsVirtualKeyCode": 13, "nativeVirtualKeyCode": 13},
-                                session_id=cdp_s.session_id,
-                            )
-                        msg += " — pressed Enter as fallback"
-
                     return ActionResult(extracted_content=msg)
                 except Exception as e:
-                    msg = f"autocomplete_select error: {e}"
+                    msg = f"native_select error: {e}"
                     logger.warning(msg)
                     return ActionResult(extracted_content=msg)
 
