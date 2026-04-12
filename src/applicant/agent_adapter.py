@@ -137,7 +137,7 @@ class AgentAdapter(BaseAdapter):
                 f"\nUpload the CV/resume file from: {str(Path(profile.cv_path).resolve())}\n"
                 f"\nFor any custom or open-ended questions, answer based on this professional summary:\n"
                 f"{profile.summary}\n"
-                f"\nSkills: {', '.join(profile.skills[:15])}\n"
+                f"\nSkills: {', '.join(profile.skills)}\n"
                 f"\nAfter filling all fields, submit the form.\n"
                 f"AFTER SUBMISSION — SUCCESS DETECTION (CRITICAL):\n"
                 f"If after clicking Submit you see a confirmation like 'Thank you', "
