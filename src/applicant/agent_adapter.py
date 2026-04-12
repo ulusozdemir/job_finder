@@ -74,16 +74,21 @@ class AgentAdapter(BaseAdapter):
 
             closed_job_instructions = (
                 f"\nJOB CLOSED / ALREADY APPLIED DETECTION (CRITICAL):\n"
-                f"After navigating to the job page, if you see ANY of these:\n"
+                f"Check ONLY the VISIBLE page content (what you see in the screenshot). "
+                f"Do NOT use search_page — it matches hidden script data and gives false positives.\n"
+                f"If you see ANY of these in the VISIBLE UI:\n"
                 f"- 'No longer accepting applications'\n"
                 f"- 'This job is no longer available'\n"
                 f"- 'This position has been filled'\n"
                 f"- 'Bu ilan artık aktif değil'\n"
                 f"- 'Başvuru kabul edilmiyor'\n"
-                f"- 'Applied X ago' / 'Application submitted'\n"
-                f"- 'Başvurunuz gönderildi' / 'Başvurdunuz'\n"
+                f"- An 'Applied X ago' badge near the job title\n"
+                f"- 'Başvurunuz gönderildi' / 'Başvurdunuz' banner\n"
                 f"Then IMMEDIATELY use the done action with message: 'JOB_CLOSED: <reason>.'\n"
                 f"Do NOT search for apply buttons, do NOT scroll, do NOT extract links. Just report done.\n"
+                f"IMPORTANT: Only report JOB_CLOSED based on a clear, prominent banner/message "
+                f"visible in the screenshot. If the page looks normal with an APPLY button and no "
+                f"closure banner, proceed with the application.\n"
             )
 
             task_prompt = (
@@ -125,15 +130,21 @@ class AgentAdapter(BaseAdapter):
                 f"\nSALARY: The salary above is NET. If the form asks for net, use {profile.salary_expectation}. "
                 f"If the form asks for GROSS, multiply by ~1.47 (Turkish tax). "
                 f"If a different currency is requested, convert at approximate current rates.\n"
-                f"For English proficiency questions, pick the closest option to C1: "
-                f"'Professional working proficiency', 'Full professional proficiency', 'Advanced', or 'Fluent'.\n"
+                f"For English proficiency: level is C1. If the field is a dropdown, "
+                f"open it first to see the available options, then pick the closest to C1/Advanced.\n"
                 f"For work authorization: authorized to work in Turkey without sponsorship. "
                 f"For other countries, visa sponsorship is required.\n"
-                f"\nUpload the CV/resume file from: {profile.cv_path}\n"
+                f"\nUpload the CV/resume file from: {str(Path(profile.cv_path).resolve())}\n"
                 f"\nFor any custom or open-ended questions, answer based on this professional summary:\n"
                 f"{profile.summary}\n"
                 f"\nSkills: {', '.join(profile.skills[:15])}\n"
-                f"\nAfter filling all fields, submit the form. "
+                f"\nAfter filling all fields, submit the form.\n"
+                f"AFTER SUBMISSION — SUCCESS DETECTION (CRITICAL):\n"
+                f"If after clicking Submit you see a confirmation like 'Thank you', "
+                f"'Application submitted', 'Your application has been received', or similar:\n"
+                f"→ IMMEDIATELY call done(text='APPLICATION_SUBMITTED', success=True).\n"
+                f"Do NOT navigate away. Do NOT re-check the job page. Do NOT search for closure indicators. "
+                f"The task is COMPLETE.\n\n"
                 f"IMPORTANT security check handling:\n"
                 f"- If the site shows a security check, CAPTCHA button, or press-and-hold challenge, "
                 f"try to interact with it before giving up.\n"
@@ -194,33 +205,46 @@ class AgentAdapter(BaseAdapter):
 
                 # ── DROPDOWN STEP-BY-STEP ──
                 f"DROPDOWN FIELDS — STEP-BY-STEP:\n"
-                f"  Step 1: Click the field to focus it.\n"
-                f"  Step 2: Use 'input' action with clear=True to type the value.\n"
-                f"  Step 3: Check the screenshot.\n"
-                f"    → Suggestions appeared? Use force_click_element(text='exact option text') "
-                f"to click the option. This sends trusted events. DONE.\n"
-                f"    → NO suggestions? This is a plain text input. The value is already typed. "
-                f"MOVE ON to the next field. Do NOT retry.\n"
-                f"  IMPORTANT: Do NOT use regular 'click' action for dropdown suggestions. "
-                f"It uses synthetic events that React/custom frameworks ignore. "
-                f"ALWAYS use force_click_element(text=...) for dropdown options.\n\n"
+                f"  APPROACH A — You KNOW the exact option text (e.g. country='Türkiye', city='Ankara'):\n"
+                f"    Step 1: Click the input field to focus it.\n"
+                f"    Step 2: Use 'input' action with clear=True to type the value.\n"
+                f"    Step 3: Check the screenshot.\n"
+                f"      → Suggestions appeared? Use force_click_element(text='exact option text') to select. DONE.\n"
+                f"      → NO suggestions? This is plain text. Value is set. MOVE ON.\n"
+                f"  APPROACH B — You do NOT know the options (e.g. 'English level', 'Notice period', "
+                f"or any dropdown where you cannot guess the exact option text):\n"
+                f"    Step 1: Click the input field to focus/open the dropdown.\n"
+                f"    Step 2: Look at the screenshot to READ the available options.\n"
+                f"    Step 3: Pick the best matching option from what you see.\n"
+                f"    Step 4: If too many options, type a SHORT keyword (1-2 words) to filter, "
+                f"then look at suggestions.\n"
+                f"    Step 5: Use force_click_element(text='exact visible option text') to select. DONE.\n"
+                f"  CRITICAL RULES FOR ALL DROPDOWNS:\n"
+                f"  - ALWAYS use force_click_element(text=...) to click dropdown options. "
+                f"NEVER use regular 'click' action — it uses synthetic events that React ignores.\n"
+                f"  - If you do not know the exact options, LOOK first, then type to filter.\n"
+                f"  - Do NOT guess option names repeatedly. If your text returns 0 results, "
+                f"clear the field and just click to see ALL options.\n\n"
 
                 # ── ONE-STRIKE RULE ──
                 f"ONE-STRIKE RULE (ABSOLUTE — NEVER VIOLATE):\n"
-                f"Every field gets a MAXIMUM of 3 total actions. After 3 actions on the SAME field, SKIP it.\n"
+                f"Every field gets a MAXIMUM of 4 total actions. After 4 actions on the SAME field, SKIP it.\n"
                 f"Escalation strategy:\n"
                 f"  A) fill_text_field fails → try 'input' once → still fails → SKIP.\n"
                 f"  B) 'input' typed, NO suggestions appeared → it is plain text, value is set. MOVE ON. "
                 f"Do NOT retry 'input' hoping suggestions will appear.\n"
-                f"  C) 'input' typed, suggestions appeared, click failed → retry 'input' + 'click' ONCE → "
+                f"  C) 'input' typed, suggestions appeared, force_click_element failed → retry ONCE → "
                 f"still fails → SKIP.\n"
-                f"CRITICAL: If you typed into a field and no suggestions appeared, it is NOT a dropdown. "
-                f"Stop. The value is already in the field. Move to the next field.\n\n"
+                f"  D) Typed text returns '0 results' → clear field, click to open dropdown, "
+                f"READ the available options from screenshot, pick the best one → "
+                f"force_click_element. If still fails → SKIP.\n"
+                f"CRITICAL: NEVER type the same text more than twice into a dropdown. "
+                f"If 0 results, try a DIFFERENT keyword or open the dropdown to see options.\n\n"
 
                 # ── BANNED ACTIONS ──
                 f"BANNED ACTIONS (NEVER USE):\n"
                 f"- find_elements — wastes steps, returns irrelevant elements.\n"
-                f"- search_page — wastes steps.\n"
+                f"- search_page — NEVER use this. It matches hidden script/metadata and causes false positives.\n"
                 f"- extract — for reading dropdown options. Just look at the screenshot.\n"
                 f"- evaluate with querySelectorAll for dropdown options.\n"
                 f"- Retrying the same action more than twice on one field.\n"
@@ -1138,6 +1162,13 @@ class AgentAdapter(BaseAdapter):
             logger.info("Agent completed: %s", final_result)
 
             result_text = str(final_result).lower()
+
+            if "application_submitted" in result_text:
+                return ApplyResult(
+                    success=True,
+                    message=str(final_result)[:500],
+                    adapter_used=self.name,
+                )
 
             if "captcha" in result_text:
                 return ApplyResult(
