@@ -944,10 +944,16 @@ class AgentAdapter(BaseAdapter):
                         }
                     }""")
                     import asyncio as _aio2
-                    await page.keyboard.press("Backspace")
-                    await _aio2.sleep(0.15)
-                    await page.keyboard.press("Backspace")
-                    await _aio2.sleep(0.15)
+                    cdp_bs = await browser_session.get_or_create_cdp_session()
+                    for _ in range(2):
+                        for _et in ("keyDown", "keyUp"):
+                            await cdp_bs.cdp_client.send_raw(
+                                "Input.dispatchKeyEvent",
+                                {"type": _et, "key": "Backspace", "code": "Backspace",
+                                 "windowsVirtualKeyCode": 8, "nativeVirtualKeyCode": 8},
+                                session_id=cdp_bs.session_id,
+                            )
+                        await _aio2.sleep(0.15)
 
                     await _cdp_type_char_by_char(browser_session, page, value, delay_ms=45)
 
@@ -960,7 +966,7 @@ class AgentAdapter(BaseAdapter):
 
                     if result == "NO_SUGGESTIONS":
                         await _cdp_clear_field(browser_session, page)
-                        await page.keyboard.type(value, delay=60)
+                        await _cdp_type_char_by_char(browser_session, page, value, delay_ms=60)
                         for wait2 in (1.0, 1.5):
                             await _aio.sleep(wait2)
                             result = await page.evaluate(_CLICK_OPTION_JS, {"value": value})
