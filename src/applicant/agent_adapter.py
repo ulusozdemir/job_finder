@@ -1119,7 +1119,7 @@ class AgentAdapter(BaseAdapter):
                 task=task_prompt,
                 llm=llm,
                 browser_profile=browser_profile,
-                # tools=tools,  # DISABLED: testing with browser-use built-in actions only
+                tools=tools,
                 available_file_paths=[cv_abs],
                 save_conversation_path=str(SCREENSHOT_DIR / "agent_conversation.json"),
                 max_steps=MAX_AGENT_STEPS,
