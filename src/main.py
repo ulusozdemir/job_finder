@@ -231,39 +231,61 @@ async def run() -> None:
 
         # ── Stage 5: Notify ──────────────────────────────────────
         all_to_notify = deduped_retries + deduped_candidates
+        above_threshold: list[Job] = []
         below_threshold: list[Job] = []
         for job in all_to_notify:
-            if job.notified:
+            if job.notified or job.match_score is None:
                 continue
-            if job.match_score is None:
-                continue
-            if job.match_score < settings.score_threshold:
+            if job.match_score >= settings.score_threshold:
+                above_threshold.append(job)
+            else:
                 below_threshold.append(job)
-                continue
 
-            reasons = json.loads(job.match_reasons or "[]")
-            missing = json.loads(job.missing_skills or "[]")
-
-            sent = send_job_notification(
-                title=job.title,
-                company=job.company,
-                location=job.location,
-                url=job.url,
-                score=int(job.match_score),
-                reasons=reasons,
-                missing_skills=missing,
-                posted_time=job.posted_time,
-                work_type=job.work_type,
-                job_id=job.job_id,
-            )
-            if sent:
-                job.notified = True
-                stats["notified"] += 1
-
-        session.commit()
+        above_threshold.sort(key=lambda j: j.match_score or 0, reverse=True)
+        below_threshold.sort(key=lambda j: j.match_score or 0, reverse=True)
 
         _log_summary(stats)
-        _send_summary(stats, below_threshold)
+        _send_summary(stats, len(above_threshold), len(below_threshold))
+
+        if above_threshold:
+            send_alert(f"✅ MATCHING JOBS ({len(above_threshold)})\nScore >= {settings.score_threshold}")
+            for job in above_threshold:
+                reasons = json.loads(job.match_reasons or "[]")
+                missing = json.loads(job.missing_skills or "[]")
+                sent = send_job_notification(
+                    title=job.title,
+                    company=job.company,
+                    location=job.location,
+                    url=job.url,
+                    score=int(job.match_score),
+                    reasons=reasons,
+                    missing_skills=missing,
+                    posted_time=job.posted_time,
+                    work_type=job.work_type,
+                    job_id=job.job_id,
+                )
+                if sent:
+                    job.notified = True
+                    stats["notified"] += 1
+
+        if below_threshold:
+            send_alert(f"🚫 AI ELIMINATED ({len(below_threshold)})\nScore < {settings.score_threshold}")
+            for job in below_threshold:
+                missing = json.loads(job.missing_skills or "[]")
+                send_rejected_notification(
+                    title=job.title,
+                    company=job.company,
+                    location=job.location,
+                    url=job.url,
+                    score=int(job.match_score),
+                    rejection_reason=job.rejection_reason or "",
+                    missing_skills=missing,
+                    posted_time=job.posted_time,
+                    work_type=job.work_type,
+                    job_id=job.job_id,
+                )
+
+        session.commit()
 
     finally:
         session.close()
@@ -280,7 +302,7 @@ def _log_summary(stats: dict) -> None:
     logger.info("========================")
 
 
-def _send_summary(stats: dict, below_threshold: list | None = None) -> None:
+def _send_summary(stats: dict, matched: int = 0, eliminated: int = 0) -> None:
     icon = "✅" if stats["notified"] > 0 else "📭"
     retried = stats.get("retried", 0)
     lines = [
@@ -293,25 +315,11 @@ def _send_summary(stats: dict, below_threshold: list | None = None) -> None:
         lines.append(f"Retried:       {retried}")
     lines += [
         f"AI scored:     {stats['scored']}",
+        f"Matched:       {matched}",
+        f"Eliminated:    {eliminated}",
         f"Notified:      {stats['notified']}",
     ]
     send_alert("\n".join(lines))
-
-    if below_threshold:
-        for job in below_threshold:
-            missing = json.loads(job.missing_skills or "[]")
-            send_rejected_notification(
-                title=job.title,
-                company=job.company,
-                location=job.location,
-                url=job.url,
-                score=int(job.match_score),
-                rejection_reason=job.rejection_reason or "",
-                missing_skills=missing,
-                posted_time=job.posted_time,
-                work_type=job.work_type,
-                job_id=job.job_id,
-            )
 
 
 if __name__ == "__main__":
