@@ -149,43 +149,59 @@ class AgentAdapter(BaseAdapter):
                 f"Do NOT keep retrying the same action if it triggers a login popup — report failure instead. "
                 f"If there are required fields you cannot fill, skip them and note them.\n\n"
                 f"FORM FILLING RULES (CRITICAL):\n"
-                f"- For ALL text input fields, use fill_text_field(label='Field Label', value='...'). "
-                f"This is the PREFERRED method — it finds fields by label text and does NOT need element indices.\n"
+                f"- For ALL text input fields (name, email, phone, address, textarea, etc.), "
+                f"use fill_text_field(label='Field Label', value='...'). "
+                f"This is the PREFERRED method — it finds fields by label text and does NOT need element indices. "
+                f"It also works for date inputs, number inputs, contenteditable divs, and native <select>.\n"
                 f"- For DROPDOWN / AUTOCOMPLETE fields (City, Country, Skill, Language level, etc.), "
                 f"use autocomplete_select(label='Field Label', value='...'). "
-                f"It types the value and clicks the matching suggestion from the dropdown.\n"
-                f"- ONE-STRIKE RULE: If fill_text_field or autocomplete_select fails ONCE for a field, "
-                f"do NOT retry it for that field. The tool searches by label/name in the DOM — "
-                f"if it fails, retrying will always fail. Instead, IMMEDIATELY switch to:\n"
-                f"  1. Use the 'input' action with the element INDEX from the CURRENT screenshot\n"
-                f"  2. For dropdowns: after typing with 'input', wait 1-2 seconds, "
-                f"then 'click' the matching option from the dropdown in the screenshot\n"
-                f"  INDICES CHANGE AFTER EVERY ACTION on React pages — always use the latest screenshot.\n"
-                f"- Do NOT use find_elements or search_page — they waste steps.\n"
-                f"- AFTER FILLING A FIELD: move to the next field immediately. "
-                f"Do NOT verify or re-fill unless the screenshot clearly shows it is empty.\n"
-                f"- For radio buttons: use force_click_element(text=\"Hayır\"). Only pass text=, never selector='div'.\n"
-                f"- For CHECKBOXES (e.g. Terms & Conditions / 'hüküm ve koşullar'): "
-                f"use force_click_element(text='short unique text from the label'). "
-                f"Keep the text SHORT (first 20-30 chars). Example: force_click_element(text='Evet, hüküm ve koşul'). "
-                f"If force_click_element fails ONCE, immediately use evaluate with JS: "
-                f"document.querySelector('[role=\"checkbox\"]').click() or "
-                f"document.querySelector('input[type=\"checkbox\"]').click(). "
+                f"It types the value char-by-char to trigger suggestions and clicks the best match.\n"
+                f"- For native <select> dropdowns: use set_form_value(selector, value). "
+                f"Also works for checkboxes (pass 'true'/'false'), radio buttons, date/time/range/color inputs, "
+                f"hidden inputs, and contenteditable elements.\n\n"
+                f"ONE-STRIKE RULE (ABSOLUTE — NEVER VIOLATE):\n"
+                f"If fill_text_field or autocomplete_select returns a FAILURE or NO_SUGGESTIONS for a field:\n"
+                f"  1. Do NOT call the same tool again for that field. It will ALWAYS fail again.\n"
+                f"  2. IMMEDIATELY use the 'input' action with the element INDEX from the CURRENT screenshot.\n"
+                f"  3. For dropdowns: after 'input', wait 2 seconds, then 'click' the matching option VISIBLE in the screenshot.\n"
+                f"  4. If that ALSO fails, SKIP the field entirely and move to the next field.\n"
+                f"  5. MAXIMUM 2 total attempts per field (1 tool call + 1 fallback). Then SKIP.\n\n"
+                f"BANNED ACTIONS (NEVER USE THESE):\n"
+                f"- find_elements — NEVER use it. It wastes steps and returns irrelevant page elements.\n"
+                f"- search_page — NEVER use it.\n"
+                f"- evaluate with querySelectorAll('[role=\"option\"]') — NEVER manually search for dropdown options. "
+                f"The autocomplete_select tool already handles this internally.\n"
+                f"- DO NOT write loops or retry logic in evaluate() to find dropdown options.\n"
+                f"- DO NOT call find_elements repeatedly with different selectors for the same field.\n\n"
+                f"FIELD TYPE HANDLING:\n"
+                f"- Plain text inputs: fill_text_field(label=..., value=...)\n"
+                f"- Autocomplete/typeahead: autocomplete_select(label=..., value=...)\n"
+                f"- Native <select>: set_form_value(selector='select[name=\"...\"]', value='...')\n"
+                f"- Radio buttons: force_click_element(text='option text'). Only pass text=, never selector='div'.\n"
+                f"- Checkboxes: force_click_element(text='short label text'). "
+                f"Keep text SHORT (first 20-30 chars). Example: force_click_element(text='Evet, hüküm ve koşul'). "
+                f"If it fails ONCE, use evaluate: document.querySelector('input[type=\"checkbox\"]').click(). "
                 f"Do NOT retry force_click_element more than once for checkboxes.\n"
-                f"- For native <select> dropdowns: use set_form_value(selector, value).\n"
-                f"- NEVER repeat the same failing action for the same field. "
-                f"Always switch strategy after 1 failure.\n"
-                f"- VALIDATION ERRORS: When you click 'İleri'/'Next' and see errors, "
+                f"- Date inputs: fill_text_field(label=..., value='YYYY-MM-DD') or set_form_value.\n"
+                f"- File upload: use the upload_file action with the CV path.\n"
+                f"- Slider/range: set_form_value(selector='input[type=\"range\"]', value='50').\n"
+                f"- Toggle/switch: force_click_element(text='toggle label text').\n\n"
+                f"AFTER FILLING A FIELD: move to the next field immediately. "
+                f"Do NOT verify or re-fill unless the screenshot clearly shows it is empty.\n"
+                f"INDICES CHANGE AFTER EVERY ACTION on React pages — always use the latest screenshot.\n\n"
+                f"VALIDATION ERRORS: When you click 'İleri'/'Next' and see errors, "
                 f"read EACH error message carefully. They may be about DIFFERENT fields. "
                 f"Do NOT assume all errors are about the last field you edited. "
                 f"Fix each specific field mentioned in the error.\n\n"
                 f"AUTOCOMPLETE / TYPEAHEAD FIELDS (Mahalle/Köy, Şehir, Ülke, etc.):\n"
-                f"Use the autocomplete_select tool for these fields. It types, waits for suggestions, "
-                f"and clicks the best match automatically. Examples:\n"
+                f"Use the autocomplete_select tool for these fields. It types char-by-char, "
+                f"waits for suggestions, and clicks the best match automatically. Examples:\n"
                 f"  autocomplete_select(label='Mahalle/Köy', value='Etimesgut')\n"
                 f"  autocomplete_select(label='Şehir', value='Ankara')\n"
-                f"If autocomplete_select fails, skip the field and move on. "
-                f"Do NOT retry the same autocomplete field more than 2 times."
+                f"  autocomplete_select(label='Primary skill', value='Python')\n"
+                f"  autocomplete_select(label='Current City', value='Ankara')\n"
+                f"If autocomplete_select returns NO_SUGGESTIONS, use 'input' to type and 'click' the option "
+                f"from the screenshot. If that also fails, SKIP and move on. NEVER spend more than 2 steps on one autocomplete field."
             )
 
             from browser_use import ActionResult, Tools
@@ -370,7 +386,31 @@ class AgentAdapter(BaseAdapter):
                 const label = (args.label || '').trim();
                 const name = (args.name || '').trim();
                 const labelClean = label.replace(/\\s*\\*\\s*$/, '').trim();
-                const SELECTORS = 'input, textarea, select, [role="combobox"]';
+                const SELECTORS = [
+                    'input:not([type="hidden"])', 'textarea', 'select',
+                    '[role="combobox"]', '[role="searchbox"]', '[role="spinbutton"]',
+                    '[role="textbox"]', '[contenteditable="true"]',
+                    '[data-automation-id] input',
+                    '[class*="select__input"]', '[class*="dropdown__input"]',
+                    '[class*="MuiInput"] input', '[class*="MuiOutlinedInput"] input',
+                    '[class*="MuiAutocomplete"] input',
+                    '[class*="ant-select"] input', '[class*="ant-input"]',
+                    '[class*="choices__input"]',
+                    '[class*="mat-input"]', '[class*="mat-select"]',
+                    'mat-select', 'input[matinput]', 'input[matInput]',
+                    '[class*="v-select"] input', '[class*="v-text-field"] input',
+                    '[class*="v-autocomplete"] input',
+                    '[class*="el-input"] input', '[class*="el-select"] input',
+                    '[class*="el-autocomplete"] input',
+                    '[class*="p-autocomplete"] input', '[class*="p-dropdown"]',
+                    '[class*="p-inputtext"]',
+                    '[class*="multiselect__input"]',
+                    '[class*="vs__search"]',
+                    '[class*="selectize-input"] input',
+                    '[class*="select2-search"] input',
+                    '[class*="chosen-search"] input',
+                    '[class*="tom-select"] input'
+                ].join(', ');
                 let input;
 
                 function findNearInput(el) {
@@ -380,13 +420,32 @@ class AgentAdapter(BaseAdapter):
                     let sib = el.nextElementSibling;
                     for (let i = 0; i < 5 && sib; i++) {
                         found = sib.querySelector(SELECTORS)
-                            || (sib.matches(SELECTORS) ? sib : null);
+                            || (sib.matches && sib.matches(SELECTORS) ? sib : null);
                         if (found) return found;
                         sib = sib.nextElementSibling;
                     }
+                    let prev = el.previousElementSibling;
+                    for (let i = 0; i < 3 && prev; i++) {
+                        found = prev.querySelector(SELECTORS)
+                            || (prev.matches && prev.matches(SELECTORS) ? prev : null);
+                        if (found) return found;
+                        prev = prev.previousElementSibling;
+                    }
                     const parent = el.closest(
-                        '.form-group, [class*="field"], [class*="Field"], ' +
-                        '[data-automation-id], [class*="container"], [class*="wrapper"]'
+                        '.form-group, .form-field, .form-row, .form-item, ' +
+                        '[class*="field"], [class*="Field"], [class*="form-control"], ' +
+                        '[data-automation-id], [class*="container"], [class*="wrapper"], ' +
+                        '[class*="MuiFormControl"], [class*="MuiTextField"], ' +
+                        '[class*="ant-form-item"], [class*="ant-row"], ' +
+                        '[class*="mat-form-field"], [class*="mat-input"], ' +
+                        '[class*="v-input"], [class*="v-field"], ' +
+                        '[class*="el-form-item"], [class*="el-input"], ' +
+                        '[class*="p-field"], [class*="p-float-label"], ' +
+                        '[class*="FormField"], [class*="input-group"], ' +
+                        '[class*="choices"], [class*="multiselect"], ' +
+                        '[class*="vs__dropdown"], [class*="selectize-control"], ' +
+                        '[class*="select2-container"], [class*="chosen-container"], ' +
+                        '[class*="tom-select"], fieldset'
                     );
                     if (parent) {
                         found = parent.querySelector(SELECTORS);
@@ -396,9 +455,12 @@ class AgentAdapter(BaseAdapter):
                 }
 
                 function textMatch(text) {
-                    const t = text.trim().replace(/\\s*\\*\\s*$/, '');
-                    return t === label || t === labelClean
-                        || t.includes(label) || t.includes(labelClean);
+                    const t = text.trim().replace(/\\s*\\*\\s*$/, '').replace(/\\s+/g, ' ');
+                    const l = label.replace(/\\s+/g, ' ');
+                    const lc = labelClean.replace(/\\s+/g, ' ');
+                    return t === l || t === lc
+                        || t.includes(l) || t.includes(lc)
+                        || l.includes(t) || lc.includes(t);
                 }
 
                 if (label) {
@@ -407,57 +469,136 @@ class AgentAdapter(BaseAdapter):
                     if (match) {
                         const forId = match.getAttribute('for');
                         if (forId) input = document.getElementById(forId);
+                        if (!input) input = match.querySelector(SELECTORS);
                         if (!input) input = findNearInput(match);
                     }
                     if (!input) {
                         const allText = [...document.querySelectorAll(
-                            'span, div, p, h3, h4, strong, legend'
+                            'span, div, p, h3, h4, h5, strong, legend, dt, ' +
+                            '[class*="label"], [class*="Label"]'
                         )];
                         const textEl = allText.find(el =>
-                            textMatch(el.textContent) && el.children.length < 3
+                            textMatch(el.textContent) && el.children.length < 4
                         );
                         if (textEl) input = findNearInput(textEl);
                     }
                     if (!input) input = document.querySelector(
                         `[aria-label*="${labelClean}"]`
                     );
+                    if (!input) {
+                        const allLabelled = document.querySelectorAll('[aria-labelledby]');
+                        for (const el of allLabelled) {
+                            const lblId = el.getAttribute('aria-labelledby');
+                            const lblEl = lblId && document.getElementById(lblId);
+                            if (lblEl && textMatch(lblEl.textContent)) {
+                                input = el; break;
+                            }
+                        }
+                    }
                     if (input && !input.matches(SELECTORS)) {
                         const inner = input.querySelector(SELECTORS);
                         if (inner) input = inner;
                     }
                     if (!input) input = document.querySelector(
                         `input[placeholder*="${labelClean}"], textarea[placeholder*="${labelClean}"], ` +
-                        `[role="combobox"][placeholder*="${labelClean}"]`
+                        `[role="combobox"][placeholder*="${labelClean}"], ` +
+                        `[role="searchbox"][placeholder*="${labelClean}"], ` +
+                        `[data-placeholder*="${labelClean}"]`
                     );
                 }
                 if (!input && name) {
                     input = document.querySelector(
                         `input[name*="${name}"], textarea[name*="${name}"], ` +
-                        `[role="combobox"][name*="${name}"]`
+                        `select[name*="${name}"], [role="combobox"][name*="${name}"]`
                     );
                     if (!input) input = document.querySelector(
-                        `[id*="${name}"][role="combobox"], input[id*="${name}"], textarea[id*="${name}"]`
+                        `[id*="${name}"][role="combobox"], [id*="${name}"][role="searchbox"], ` +
+                        `input[id*="${name}"], textarea[id*="${name}"], select[id*="${name}"]`
+                    );
+                    if (!input) input = document.querySelector(
+                        `[data-testid*="${name}"] input, [data-automation-id*="${name}"] input`
                     );
                 }
                 if (!input) return JSON.stringify({found: false});
-                const isCombobox = input.getAttribute('role') === 'combobox'
-                    || input.classList.toString().includes('select__input');
+
+                const cls = (input.classList || '').toString().toLowerCase();
+                const isCombobox =
+                    input.getAttribute('role') === 'combobox'
+                    || input.getAttribute('role') === 'searchbox'
+                    || input.getAttribute('aria-autocomplete') === 'list'
+                    || input.getAttribute('aria-autocomplete') === 'both'
+                    || input.getAttribute('aria-expanded') !== null
+                    || input.getAttribute('aria-haspopup') === 'listbox'
+                    || input.getAttribute('aria-haspopup') === 'true'
+                    || input.getAttribute('list') !== null
+                    || input.tagName === 'MAT-SELECT'
+                    || cls.includes('select__input')
+                    || cls.includes('dropdown__input')
+                    || cls.includes('autocomplete')
+                    || cls.includes('typeahead')
+                    || cls.includes('combobox')
+                    || cls.includes('choices__input')
+                    || cls.includes('react-select')
+                    || cls.includes('ant-select')
+                    || cls.includes('muiautocomplete')
+                    || cls.includes('mat-select')
+                    || cls.includes('mat-autocomplete')
+                    || cls.includes('v-select')
+                    || cls.includes('v-autocomplete')
+                    || cls.includes('el-select')
+                    || cls.includes('el-autocomplete')
+                    || cls.includes('p-autocomplete')
+                    || cls.includes('p-dropdown')
+                    || cls.includes('multiselect__input')
+                    || cls.includes('vs__search')
+                    || cls.includes('selectize-input')
+                    || cls.includes('select2-search')
+                    || cls.includes('chosen-search')
+                    || cls.includes('tom-select')
+                    || (input.closest && (
+                        input.closest('[class*="autocomplete"]')
+                        || input.closest('[class*="Autocomplete"]')
+                        || input.closest('[class*="react-select"]')
+                        || input.closest('[class*="combobox"]')
+                        || input.closest('[class*="typeahead"]')
+                        || input.closest('[class*="dropdown__control"]')
+                        || input.closest('[class*="select__control"]')
+                        || input.closest('[class*="mat-form-field"]')
+                        || input.closest('[class*="mat-autocomplete"]')
+                        || input.closest('[class*="v-select"]')
+                        || input.closest('[class*="v-autocomplete"]')
+                        || input.closest('[class*="v-combobox"]')
+                        || input.closest('[class*="el-select"]')
+                        || input.closest('[class*="el-autocomplete"]')
+                        || input.closest('[class*="p-autocomplete"]')
+                        || input.closest('[class*="p-dropdown"]')
+                        || input.closest('[class*="multiselect"]')
+                        || input.closest('[class*="vs__dropdown"]')
+                        || input.closest('[class*="selectize-control"]')
+                        || input.closest('[class*="select2-container"]')
+                        || input.closest('[class*="chosen-container"]')
+                        || input.closest('[class*="tom-select"]')
+                        || input.closest('[data-automation-id*="combobox"]')
+                    ) !== null);
+                const isSelect = input.tagName === 'SELECT';
                 input.scrollIntoView({block: 'center'});
                 input.focus();
                 input.click();
                 return JSON.stringify({
                     found: true, tag: input.tagName,
                     name: input.name || '', id: input.id || '',
-                    isCombobox: isCombobox
+                    type: input.type || '',
+                    isCombobox: isCombobox,
+                    isSelect: isSelect
                 });
             }"""
 
-            async def _cdp_type(browser_session, page, text):
-                """Clear field and type text via CDP (trusted events)."""
+            async def _cdp_clear_field(browser_session, page):
+                """Select all and delete the current field content."""
                 cdp_session = await browser_session.get_or_create_cdp_session()
                 client = cdp_session.cdp_client
                 sid = cdp_session.session_id
-                await page.evaluate("() => document.execCommand('selectAll')")
+                await page.evaluate("() => document.activeElement && document.execCommand('selectAll')")
                 await client.send_raw(
                     "Input.dispatchKeyEvent",
                     {"type": "keyDown", "key": "Delete", "code": "Delete",
@@ -472,13 +613,52 @@ class AgentAdapter(BaseAdapter):
                 )
                 import asyncio as _aio
                 await _aio.sleep(0.1)
+
+            async def _cdp_type(browser_session, page, text):
+                """Clear field and insert text all at once via CDP (fast, for plain inputs)."""
+                await _cdp_clear_field(browser_session, page)
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                client = cdp_session.cdp_client
+                sid = cdp_session.session_id
                 await client.send_raw(
                     "Input.insertText", {"text": text}, session_id=sid,
                 )
+                await page.evaluate("""() => {
+                    const el = document.activeElement;
+                    if (!el) return;
+                    el.dispatchEvent(new Event('input', {bubbles: true}));
+                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                }""")
+
+            async def _cdp_type_char_by_char(browser_session, page, text, delay_ms=40):
+                """Clear field and type text character-by-character via CDP.
+                Triggers individual keyDown/keyUp per char — required for
+                autocomplete/typeahead fields that listen to per-keystroke events."""
+                await _cdp_clear_field(browser_session, page)
+                cdp_session = await browser_session.get_or_create_cdp_session()
+                client = cdp_session.cdp_client
+                sid = cdp_session.session_id
+                import asyncio as _aio
+                for ch in text:
+                    await client.send_raw(
+                        "Input.dispatchKeyEvent",
+                        {"type": "keyDown", "key": ch, "text": ch,
+                         "unmodifiedText": ch},
+                        session_id=sid,
+                    )
+                    await client.send_raw(
+                        "Input.dispatchKeyEvent",
+                        {"type": "keyUp", "key": ch},
+                        session_id=sid,
+                    )
+                    if delay_ms > 0:
+                        await _aio.sleep(delay_ms / 1000)
 
             @tools.action(description=(
                 "Fill a text input field by its visible label text (e.g. 'Soyadı', 'E-posta'). "
                 "Finds the field by label, clears it, and types the value via CDP (trusted events). "
+                "Works with plain inputs, textareas, contenteditable, date/number inputs, "
+                "React, Angular, Vue, Svelte, and Workday fields. "
                 "No element index needed. PREFERRED method for ALL text input fields. "
                 "If label doesn't match, pass the input's name attribute instead."
             ))
@@ -500,12 +680,73 @@ class AgentAdapter(BaseAdapter):
                         logger.warning("fill_text_field: %s", msg)
                         return ActionResult(extracted_content=msg)
 
-                    await _cdp_type(browser_session, page, value)
+                    if info.get("isSelect"):
+                        select_js = """(args) => {
+                            const el = document.activeElement;
+                            if (!el || el.tagName !== 'SELECT') return 'NOT_SELECT';
+                            const val = args.value.toLowerCase();
+                            for (const opt of el.options) {
+                                if (opt.text.toLowerCase().includes(val) ||
+                                    opt.value.toLowerCase().includes(val)) {
+                                    el.value = opt.value;
+                                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                                    return 'Selected: ' + opt.text;
+                                }
+                            }
+                            el.value = args.value;
+                            el.dispatchEvent(new Event('change', {bubbles: true}));
+                            return 'Set value: ' + args.value;
+                        }"""
+                        result = await page.evaluate(select_js, {"value": value})
+                        msg = f"fill_text_field(select): label='{label}' → {result}"
+                        logger.info(msg)
+                        return ActionResult(extracted_content=msg)
 
-                    actual = await page.evaluate("() => document.activeElement ? document.activeElement.value : ''")
+                    tag = info.get("tag", "").upper()
+                    input_type = info.get("type", "").lower()
+
+                    if tag == "DIV" or info.get("tag", "") in ("DIV", "SPAN", "P"):
+                        await page.evaluate("""(args) => {
+                            const el = document.activeElement;
+                            if (el) {
+                                el.textContent = args.value;
+                                el.dispatchEvent(new Event('input', {bubbles: true}));
+                                el.dispatchEvent(new Event('change', {bubbles: true}));
+                            }
+                        }""", {"value": value})
+                    elif input_type in ("date", "datetime-local", "month", "week", "time"):
+                        await page.evaluate("""(args) => {
+                            const el = document.activeElement;
+                            if (!el) return;
+                            const proto = Object.getOwnPropertyDescriptor(
+                                window.HTMLInputElement.prototype, 'value'
+                            );
+                            if (proto && proto.set) proto.set.call(el, args.value);
+                            else el.value = args.value;
+                            el.dispatchEvent(new Event('input', {bubbles: true}));
+                            el.dispatchEvent(new Event('change', {bubbles: true}));
+                        }""", {"value": value})
+                    else:
+                        await _cdp_type(browser_session, page, value)
+
+                    await page.evaluate("""() => {
+                        const el = document.activeElement;
+                        if (!el) return;
+                        el.dispatchEvent(new Event('input', {bubbles: true}));
+                        el.dispatchEvent(new Event('change', {bubbles: true}));
+                        el.dispatchEvent(new Event('blur', {bubbles: true}));
+                        el.dispatchEvent(new FocusEvent('focusout', {bubbles: true}));
+                    }""")
+
+                    actual = await page.evaluate("""() => {
+                        const el = document.activeElement ||
+                            document.querySelector(':focus');
+                        if (!el) return '';
+                        return el.value || el.textContent || '';
+                    }""")
                     msg = (
                         f"Filled {info.get('tag','')} (label='{label}', name='{info.get('name','')}') "
-                        f"with '{value}' (actual='{actual}')"
+                        f"with '{value}' (actual='{str(actual)[:80]}')"
                     )
                     logger.info("fill_text_field: %s", msg)
                     return ActionResult(extracted_content=msg)
@@ -514,12 +755,139 @@ class AgentAdapter(BaseAdapter):
                     logger.warning(msg)
                     return ActionResult(extracted_content=msg)
 
+            _CLICK_OPTION_JS = """(args) => {
+                const val = args.value.toLowerCase().trim();
+                const OPTION_SELECTORS = [
+                    '[role="option"]',
+                    '[role="listbox"] li',
+                    'ul[role="listbox"] > li',
+                    '[role="listbox"] > div',
+                    '[role="presentation"] li',
+                    '[role="menu"] li',
+                    '[role="menu"] [role="menuitem"]',
+                    'div[data-automation-id*="promptOption"]',
+                    '[data-automation-id*="selectOption"]',
+                    '[data-automation-id*="option"]',
+                    '.css-1dimb5e-option',
+                    '[class*="dropdown__option"]',
+                    '[class*="select__option"]',
+                    '[class*="option"]:not([class*="optionList"])',
+                    '[class*="Option"]:not([class*="OptionList"])',
+                    '[class*="suggestion"]',
+                    '[class*="Suggestion"]',
+                    '[class*="dropdown-item"]',
+                    '[class*="dropdown__item"]',
+                    '[class*="DropdownItem"]',
+                    '[class*="menu-item"]',
+                    '[class*="MenuItem"]',
+                    '[class*="list-item"]',
+                    '[class*="ListItem"]',
+                    '[class*="autocomplete"] li',
+                    '[class*="Autocomplete"] li',
+                    '[class*="typeahead"] li',
+                    '[class*="Typeahead"] li',
+                    '[class*="choices__item--selectable"]',
+                    '[class*="ant-select-item"]',
+                    '[class*="ant-select-item-option"]',
+                    '[class*="MuiAutocomplete-option"]',
+                    'mat-option', '[class*="mat-option"]',
+                    '[class*="mat-autocomplete"] [class*="mat-option"]',
+                    '[class*="cdk-option"]',
+                    '[class*="v-list-item"]',
+                    '[class*="v-list-item__title"]',
+                    '[class*="menuable__content"] [class*="v-list-item"]',
+                    '.el-select-dropdown__item',
+                    '[class*="el-autocomplete-suggestion"] li',
+                    '[class*="el-select-dropdown"] li',
+                    '[class*="p-autocomplete-item"]',
+                    '[class*="p-autocomplete-panel"] li',
+                    '[class*="p-dropdown-item"]',
+                    '[class*="p-dropdown-items"] li',
+                    '[class*="p-listbox-item"]',
+                    '[class*="multiselect__element"]',
+                    '[class*="multiselect__option"]',
+                    '[class*="vs__dropdown-option"]',
+                    '[class*="selectize-dropdown"] [class*="option"]',
+                    '.select2-results__option',
+                    '[class*="select2-results"] li',
+                    '.chosen-results li',
+                    '.ts-dropdown [class*="option"]',
+                    '[class*="tom-select"] [class*="option"]',
+                    '[class*="headlessui"] [role="option"]',
+                    '[class*="Listbox"] [role="option"]',
+                    '[class*="downshift"] li',
+                    'datalist option',
+                    'ul.ui-autocomplete li',
+                    '.tt-suggestion',
+                    '.pac-item',
+                    '.awesomplete li',
+                    '[class*="algolia"] [class*="hit"]',
+                    '[class*="aa-Item"]'
+                ].join(', ');
+
+                const options = document.querySelectorAll(OPTION_SELECTORS);
+
+                let exact = null;
+                let startsWith = null;
+                let includes = null;
+
+                for (const opt of options) {
+                    if (opt.offsetParent === null && !opt.closest('[role="listbox"]')) continue;
+                    const txt = (opt.textContent || '').toLowerCase().trim();
+                    if (!txt) continue;
+                    if (txt === val) { exact = opt; break; }
+                    if (!startsWith && txt.startsWith(val)) startsWith = opt;
+                    if (!includes && txt.includes(val)) includes = opt;
+                }
+
+                const pick = exact || startsWith || includes;
+                if (pick) {
+                    pick.scrollIntoView({block: 'center'});
+                    pick.click();
+                    pick.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+                    pick.dispatchEvent(new MouseEvent('mouseup', {bubbles: true}));
+                    return 'Selected: ' + pick.textContent.trim().substring(0, 80);
+                }
+
+                const fallbacks = document.querySelectorAll(
+                    '[role="option"], li[tabindex], [role="listbox"] > *, ' +
+                    '[class*="dropdown__option"], [class*="select__option"], ' +
+                    '[class*="dropdown__menu"] > div > div, ' +
+                    '[class*="select__menu"] > div > div, ' +
+                    'mat-option, .el-select-dropdown__item, ' +
+                    '[class*="p-autocomplete-item"], [class*="p-dropdown-item"], ' +
+                    '[class*="v-list-item"], [class*="vs__dropdown-option"], ' +
+                    '[class*="multiselect__option"], .select2-results__option, ' +
+                    '.chosen-results li, [class*="ts-dropdown"] [class*="option"], ' +
+                    '[class*="dropdown"] li, [class*="menu"] li'
+                );
+                for (const fb of fallbacks) {
+                    if (fb.offsetParent === null) continue;
+                    const txt = (fb.textContent || '').toLowerCase().trim();
+                    if (txt && txt.includes(val)) {
+                        fb.scrollIntoView({block: 'center'});
+                        fb.click();
+                        return 'Selected (fallback): ' + fb.textContent.trim().substring(0, 80);
+                    }
+                }
+                if (fallbacks.length > 0) {
+                    const first = [...fallbacks].find(f => f.offsetParent !== null);
+                    if (first) {
+                        first.click();
+                        return 'Selected first visible: ' + first.textContent.trim().substring(0, 80);
+                    }
+                }
+                return 'NO_SUGGESTIONS';
+            }"""
+
             @tools.action(description=(
                 "Type into an autocomplete/typeahead/dropdown field and click the matching suggestion. "
-                "Works with React Select, Workday, Material UI, and standard HTML dropdowns. "
-                "Use for fields like City, Country, Skill, English level, Notice period — "
+                "Works with React Select, Workday, Material UI, Ant Design, Choices.js, jQuery UI, "
+                "Google Places, and standard HTML dropdowns/datalists. "
+                "Use for fields like City, Country, Skill, Language level, Notice period — "
                 "any field that shows a dropdown/suggestions after typing. "
-                "Finds the input by label text, types the value, waits for suggestions, and clicks the best match."
+                "Finds the input by label text, types the value char-by-char to trigger suggestions, "
+                "waits, and clicks the best match."
             ))
             async def autocomplete_select(
                 browser_session,
@@ -532,6 +900,8 @@ class AgentAdapter(BaseAdapter):
                     return ActionResult(extracted_content="No active page found")
                 try:
                     import json as _json
+                    import asyncio as _aio
+
                     raw = await page.evaluate(_FIND_INPUT_JS, {"label": label, "name": name})
                     info = _json.loads(raw) if isinstance(raw, str) else (raw or {})
                     if not info.get("found"):
@@ -539,52 +909,63 @@ class AgentAdapter(BaseAdapter):
                         logger.warning(msg)
                         return ActionResult(extracted_content=msg)
 
-                    import asyncio as _aio
-                    if info.get("isCombobox"):
-                        await page.evaluate("() => document.activeElement && document.activeElement.select()")
-                        await page.keyboard.press("Delete")
-                        await _aio.sleep(0.1)
-                        await page.keyboard.type(value, delay=50)
-                    else:
-                        await _cdp_type(browser_session, page, value)
-
-                    for wait in (1.0, 1.5):
-                        await _aio.sleep(wait)
-                        click_js = """(args) => {
+                    if info.get("isSelect"):
+                        select_js = """(args) => {
+                            const el = document.activeElement;
+                            if (!el || el.tagName !== 'SELECT') return 'NOT_SELECT';
                             const val = args.value.toLowerCase();
-                            const options = document.querySelectorAll(
-                                '[role="option"], [role="listbox"] li, ' +
-                                'ul[role="listbox"] > li, div[data-automation-id*="promptOption"], ' +
-                                '[data-automation-id*="selectOption"], ' +
-                                '.css-1dimb5e-option, [class*="option"], [class*="Option"]'
-                            );
-                            let best = null;
-                            for (const opt of options) {
-                                const txt = opt.textContent.toLowerCase().trim();
-                                if (txt === val) {
-                                    opt.scrollIntoView({block: 'center'});
-                                    opt.click();
-                                    return 'Selected: ' + opt.textContent.trim();
+                            for (const opt of el.options) {
+                                if (opt.text.toLowerCase().includes(val) ||
+                                    opt.value.toLowerCase().includes(val)) {
+                                    el.value = opt.value;
+                                    el.dispatchEvent(new Event('change', {bubbles: true}));
+                                    return 'Selected: ' + opt.text;
                                 }
-                                if (!best && txt.includes(val)) best = opt;
                             }
-                            if (best) {
-                                best.scrollIntoView({block: 'center'});
-                                best.click();
-                                return 'Selected: ' + best.textContent.trim();
-                            }
-                            const allVisible = document.querySelectorAll(
-                                '[role="option"], li[tabindex], div[data-automation-id] li'
-                            );
-                            if (allVisible.length > 0) {
-                                allVisible[0].click();
-                                return 'Selected first option: ' + allVisible[0].textContent.trim();
-                            }
-                            return 'NO_SUGGESTIONS';
+                            return 'NO_MATCH';
                         }"""
-                        result = await page.evaluate(click_js, {"value": value})
+                        result = await page.evaluate(select_js, {"value": value})
+                        msg = f"autocomplete_select(label='{label}', value='{value}'): {result}"
+                        logger.info(msg)
+                        return ActionResult(extracted_content=msg)
+
+                    await page.evaluate("""() => {
+                        const el = document.activeElement;
+                        if (!el) return;
+                        const container = el.closest(
+                            '[class*="dropdown__control"], [class*="select__control"], ' +
+                            '[class*="css-"][class*="-control"]'
+                        );
+                        if (container) {
+                            const sv = container.querySelector(
+                                '[class*="single-value"], [class*="singleValue"]'
+                            );
+                            if (sv) sv.style.display = 'none';
+                        }
+                    }""")
+                    import asyncio as _aio2
+                    await page.keyboard.press("Backspace")
+                    await _aio2.sleep(0.15)
+                    await page.keyboard.press("Backspace")
+                    await _aio2.sleep(0.15)
+
+                    await _cdp_type_char_by_char(browser_session, page, value, delay_ms=45)
+
+                    result = "NO_SUGGESTIONS"
+                    for wait in (0.8, 1.2, 1.5):
+                        await _aio.sleep(wait)
+                        result = await page.evaluate(_CLICK_OPTION_JS, {"value": value})
                         if result != "NO_SUGGESTIONS":
                             break
+
+                    if result == "NO_SUGGESTIONS":
+                        await _cdp_clear_field(browser_session, page)
+                        await page.keyboard.type(value, delay=60)
+                        for wait2 in (1.0, 1.5):
+                            await _aio.sleep(wait2)
+                            result = await page.evaluate(_CLICK_OPTION_JS, {"value": value})
+                            if result != "NO_SUGGESTIONS":
+                                break
 
                     msg = f"autocomplete_select(label='{label}', value='{value}'): {result}"
                     logger.info(msg)
@@ -608,8 +989,10 @@ class AgentAdapter(BaseAdapter):
 
             @tools.action(description=(
                 "Set a form field value using JavaScript. Works for hidden inputs, "
-                "custom dropdowns, and native <select> elements. "
+                "native <select> elements, date/time/range/color inputs, contenteditable divs, "
+                "custom dropdowns, checkboxes, radio buttons, and any element with a value property. "
                 "Provide a CSS selector and the value to set. "
+                "For checkboxes/radios, pass 'true'/'false' to check/uncheck. "
                 "Do NOT use for visible text inputs — use fill_text_field instead."
             ))
             async def set_form_value(
@@ -623,22 +1006,63 @@ class AgentAdapter(BaseAdapter):
                 js = """(args) => {
                     const el = document.querySelector(args.selector);
                     if (!el) return 'Element not found: ' + args.selector;
-                    const proto = el.tagName === 'TEXTAREA'
-                        ? window.HTMLTextAreaElement.prototype
-                        : el.tagName === 'SELECT'
-                            ? window.HTMLSelectElement.prototype
-                            : window.HTMLInputElement.prototype;
+                    const tag = el.tagName.toUpperCase();
+                    const type = (el.type || '').toLowerCase();
+
+                    if (type === 'checkbox' || type === 'radio') {
+                        const want = args.value === 'true' || args.value === '1';
+                        if (el.checked !== want) {
+                            el.checked = want;
+                            el.click();
+                        }
+                        el.dispatchEvent(new Event('change', {bubbles: true}));
+                        return 'Toggled ' + type + ' to ' + el.checked;
+                    }
+
+                    if (el.getAttribute('contenteditable') === 'true') {
+                        el.focus();
+                        el.textContent = args.value;
+                        el.dispatchEvent(new Event('input', {bubbles: true}));
+                        el.dispatchEvent(new Event('change', {bubbles: true}));
+                        return 'Set contenteditable to: ' + args.value;
+                    }
+
+                    if (tag === 'SELECT') {
+                        const val = args.value.toLowerCase();
+                        let matched = false;
+                        for (const opt of el.options) {
+                            if (opt.value === args.value || opt.text === args.value
+                                || opt.text.toLowerCase().includes(val)
+                                || opt.value.toLowerCase().includes(val)) {
+                                el.value = opt.value;
+                                matched = true;
+                                break;
+                            }
+                        }
+                        if (!matched) el.value = args.value;
+                        el.dispatchEvent(new Event('change', {bubbles: true}));
+                        return 'Selected: ' + el.options[el.selectedIndex]?.text || args.value;
+                    }
+
+                    const protos = {
+                        'TEXTAREA': window.HTMLTextAreaElement.prototype,
+                        'INPUT': window.HTMLInputElement.prototype,
+                    };
+                    const proto = protos[tag] || window.HTMLInputElement.prototype;
                     const nativeSet = Object.getOwnPropertyDescriptor(proto, 'value');
                     if (nativeSet && nativeSet.set) {
                         nativeSet.set.call(el, args.value);
                     } else {
                         el.value = args.value;
                     }
-                    el.setAttribute('value', args.value);
-                    el.dispatchEvent(new Event('input',  {bubbles: true}));
+                    if (el.setAttribute) el.setAttribute('value', args.value);
+
+                    el.dispatchEvent(new Event('focus', {bubbles: true}));
+                    el.dispatchEvent(new Event('input', {bubbles: true}));
                     el.dispatchEvent(new Event('change', {bubbles: true}));
-                    el.dispatchEvent(new Event('blur',   {bubbles: true}));
-                    return 'Set value to: ' + args.value + ' on ' + el.tagName;
+                    el.dispatchEvent(new Event('blur', {bubbles: true}));
+                    el.dispatchEvent(new FocusEvent('focusout', {bubbles: true}));
+                    return 'Set ' + tag + '[type=' + type + '] to: ' + args.value;
                 }"""
                 result = await page.evaluate(js, {"selector": selector, "value": value})
                 logger.info("set_form_value result: %s", result)
