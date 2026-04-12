@@ -185,9 +185,10 @@ class AgentAdapter(BaseAdapter):
                 f"- native_select(label=..., value=...): For native HTML <select> elements.\n"
                 f"- set_form_value(selector, value): For hidden inputs, radios, checkboxes, sliders.\n"
                 f"- force_click_element(text=...): For radio buttons and checkboxes. "
-                f"Keep text SHORT (first 20-30 chars). Only pass text=, never selector='div'. "
-                f"If it fails once, fallback to evaluate: "
-                f"document.querySelector('input[type=\"checkbox\"]').click().\n"
+                f"ONLY pass text= with the exact visible label text. "
+                f"Do NOT pass selector= for radios/checkboxes — it causes wrong element selection. "
+                f"Keep text SHORT (first 20-30 chars). "
+                f"If it fails once, fallback to clicking the element by index from the screenshot.\n"
                 f"- upload_file: For file upload fields.\n\n"
 
                 # ── DROPDOWN STEP-BY-STEP ──
@@ -270,33 +271,69 @@ class AgentAdapter(BaseAdapter):
                     const sel = (args.selector || '').trim();
 
                     if (t) {
-                        const scope = sel
-                            ? [...document.querySelectorAll(sel)]
-                            : [...document.querySelectorAll('*')];
-                        el = scope.find(e =>
-                            e.textContent.trim() === t
-                            && e.offsetParent !== null
-                            && e.children.length === 0
+                        // --- PHASE 1: label-based search (best for radios/checkboxes) ---
+                        const labels = [...document.querySelectorAll('label')];
+                        const exactLabel = labels.find(l =>
+                            l.textContent.trim() === t && l.offsetParent !== null
                         );
-                        if (!el) el = scope.find(e =>
-                            e.textContent.trim() === t
-                            && e.offsetParent !== null
+                        const partialLabel = !exactLabel && labels.find(l =>
+                            l.textContent.trim().includes(t) && l.offsetParent !== null
                         );
-                        if (!el) el = scope.find(e =>
-                            e.innerText && e.innerText.includes(t)
-                            && e.offsetParent !== null
-                        );
+                        const matchLabel = exactLabel || partialLabel;
+                        if (matchLabel) {
+                            const forId = matchLabel.getAttribute('for');
+                            if (forId) {
+                                const inp = document.getElementById(forId);
+                                if (inp && (inp.type === 'radio' || inp.type === 'checkbox')) {
+                                    const r = inp.getBoundingClientRect();
+                                    const style = getComputedStyle(inp);
+                                    const hidden = r.width < 5 || r.height < 5
+                                        || style.opacity === '0' || style.visibility === 'hidden';
+                                    el = hidden ? matchLabel : inp;
+                                } else {
+                                    el = matchLabel;
+                                }
+                            }
+                            if (!el) el = matchLabel;
+                        }
+
+                        // --- PHASE 2: scoped selector search ---
                         if (!el) {
-                            const shorter = t.substring(0, 30);
+                            const scope = sel
+                                ? [...document.querySelectorAll(sel)]
+                                : [...document.querySelectorAll('*')];
                             el = scope.find(e =>
-                                e.textContent.includes(shorter)
+                                e.textContent.trim() === t
                                 && e.offsetParent !== null
                                 && e.children.length === 0
                             );
+                            if (!el) el = scope.find(e =>
+                                e.textContent.trim() === t
+                                && e.offsetParent !== null
+                            );
+                            if (!el) el = scope.find(e =>
+                                e.innerText && e.innerText.includes(t)
+                                && e.offsetParent !== null
+                                && e.children.length === 0
+                            );
+                            if (!el) {
+                                const shorter = t.substring(0, 30);
+                                el = scope.find(e =>
+                                    e.textContent.includes(shorter)
+                                    && e.offsetParent !== null
+                                    && e.children.length === 0
+                                );
+                            }
                         }
+
+                        // --- PHASE 3: broad fallback (leaf elements first) ---
                         if (!el) {
                             const allEls = [...document.querySelectorAll('*')];
                             const textEl = allEls.find(e =>
+                                e.children.length === 0
+                                && e.innerText && e.innerText.includes(t)
+                                && e.offsetParent !== null
+                            ) || allEls.find(e =>
                                 e.innerText && e.innerText.includes(t)
                                 && e.offsetParent !== null
                             );
@@ -306,7 +343,9 @@ class AgentAdapter(BaseAdapter):
                                 else {
                                     const parent = textEl.parentElement;
                                     if (parent) {
-                                        const nearCb = parent.querySelector('input[type="checkbox"], input[type="radio"], [role="checkbox"]');
+                                        const nearCb = parent.querySelector(
+                                            'input[type="checkbox"], input[type="radio"], [role="checkbox"]'
+                                        );
                                         if (nearCb) el = nearCb;
                                         else el = textEl;
                                     } else el = textEl;
@@ -320,18 +359,29 @@ class AgentAdapter(BaseAdapter):
                     }
                     if (!el) return JSON.stringify({error: 'Element not found for text="' + t + '"'});
 
-                    // Walk up to find the clickable radio/checkbox container
+                    // --- Resolve click target ---
                     let target = el;
-                    let radio = el.closest('[role="radio"], [role="checkbox"], [role="option"]');
+
+                    // If we landed on a hidden radio/checkbox input, click its label instead
+                    if (el.tagName === 'INPUT'
+                        && (el.type === 'radio' || el.type === 'checkbox')) {
+                        const r = el.getBoundingClientRect();
+                        const style = getComputedStyle(el);
+                        const hidden = r.width < 5 || r.height < 5
+                            || style.opacity === '0' || style.visibility === 'hidden';
+                        if (hidden && el.id) {
+                            const lbl = document.querySelector('label[for="' + el.id + '"]');
+                            if (lbl) target = lbl;
+                        }
+                    }
+
+                    // Walk up to find ARIA radio/checkbox/option container
+                    let radio = target.closest('[role="radio"], [role="checkbox"], [role="option"]');
                     if (!radio) {
-                        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+                        for (let p = target.parentElement; p && p !== document.body; p = p.parentElement) {
                             const r = p.getAttribute('role');
                             if (r === 'radio' || r === 'checkbox' || r === 'option') {
                                 radio = p; break;
-                            }
-                            if (p.tagName === 'LABEL') {
-                                const inp = p.querySelector('input');
-                                if (inp) { target = inp; break; }
                             }
                         }
                     }
@@ -1069,7 +1119,7 @@ class AgentAdapter(BaseAdapter):
                 task=task_prompt,
                 llm=llm,
                 browser_profile=browser_profile,
-                tools=tools,
+                # tools=tools,  # DISABLED: testing with browser-use built-in actions only
                 available_file_paths=[cv_abs],
                 save_conversation_path=str(SCREENSHOT_DIR / "agent_conversation.json"),
                 max_steps=MAX_AGENT_STEPS,
