@@ -952,12 +952,13 @@ class AgentAdapter(BaseAdapter):
                         logger.info(msg)
                         return ActionResult(extracted_content=msg)
 
-                    rect = await page.evaluate("""() => {
+                    rect_raw = await page.evaluate("""() => {
                         const el = document.activeElement;
                         if (!el) return null;
                         const r = el.getBoundingClientRect();
                         return {x: r.x + r.width / 2, y: r.y + r.height / 2};
                     }""")
+                    rect = _json.loads(rect_raw) if isinstance(rect_raw, str) else rect_raw
                     cdp_bs = await browser_session.get_or_create_cdp_session()
                     _client = cdp_bs.cdp_client
                     _sid = cdp_bs.session_id
