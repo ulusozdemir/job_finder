@@ -539,9 +539,15 @@ class AgentAdapter(BaseAdapter):
                         logger.warning(msg)
                         return ActionResult(extracted_content=msg)
 
-                    await _cdp_type(browser_session, page, value)
-
                     import asyncio as _aio
+                    if info.get("isCombobox"):
+                        await page.evaluate("() => document.activeElement && document.activeElement.select()")
+                        await page.keyboard.press("Delete")
+                        await _aio.sleep(0.1)
+                        await page.keyboard.type(value, delay=50)
+                    else:
+                        await _cdp_type(browser_session, page, value)
+
                     for wait in (1.0, 1.5):
                         await _aio.sleep(wait)
                         click_js = """(args) => {
