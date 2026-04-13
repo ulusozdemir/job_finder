@@ -29,7 +29,28 @@ class Settings(BaseSettings):
     scrape_delay_min: float = 2.0
     scrape_delay_max: float = 5.0
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # Auto-apply settings
+    linkedin_email: str = ""
+    linkedin_password: str = ""
+    applicant_email: str = ""
+    applicant_phone: str = ""
+    cv_path: str = "assets/BERKE ODEN CV.pdf"
+    max_daily_applications: int = 20
+    headless: bool = True
+
+    # IMAP settings for LinkedIn email verification code
+    imap_server: str = "imap.gmail.com"
+    imap_email: str = ""  # defaults to linkedin_email if empty
+    imap_password: str = ""  # Gmail App Password
+
+    # Fallback only if TCMB + backup FX API both fail (TRY per 1 USD / 1 EUR)
+    try_usd_rate_fallback: float = 44.5959
+    try_eur_rate_fallback: float = 52.1683
+
+    # Rough net→gross for Turkey when forms ask brüt/gross (exact depends on tax bracket)
+    salary_net_to_gross_multiplier: float = 1.47
+
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

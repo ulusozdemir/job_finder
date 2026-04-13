@@ -1,0 +1,109 @@
+name: Auto Apply Runner
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_url:
+        description: "Direct job URL to test (overrides everything else)"
+        required: false
+        default: ""
+
+jobs:
+  auto-apply:
+    runs-on: self-hosted
+    defaults:
+      run:
+        shell: powershell
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          clean: false
+
+      - name: Setup venv and install dependencies
+        run: |
+          if (-not (Test-Path "venv")) { python -m venv venv }
+          venv\Scripts\Activate.ps1
+          $hash = (Get-FileHash requirements.txt -Algorithm MD5).Hash
+          $marker = "venv\.deps_$hash"
+          if (-not (Test-Path $marker)) {
+            python -m pip install -q -r requirements.txt
+            python -m playwright install chromium
+            New-Item -Path $marker -ItemType File -Force | Out-Null
+          } else {
+            Write-Host "Dependencies already up to date, skipping install"
+          }
+
+      - name: Copy and clean LinkedIn session if available
+        run: |
+          $src = "C:\Users\Berke\Desktop\job_finder\linkedin_session.json"
+          if (Test-Path $src) {
+            Copy-Item $src -Destination "linkedin_session.json" -Force
+            venv\Scripts\Activate.ps1
+            python -c "import json; p='linkedin_session.json'; d=json.loads(open(p,encoding='utf-8').read()); [c.pop('partitionKey',None) or c.pop('_crHasCrossSiteAncestor',None) for c in d.get('cookies',[])]; open(p,'w',encoding='utf-8').write(json.dumps(d))"
+            Write-Host "LinkedIn session loaded and cleaned"
+          } else {
+            Write-Host "No saved session found - login will be required"
+          }
+
+      - name: Backup local DB apply statuses
+        run: |
+          if (Test-Path "jobs.db") {
+            venv\Scripts\Activate.ps1
+            python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); rows = s.query(Job.job_id, Job.apply_status, Job.applied_at).filter(Job.apply_status.notin_(['not_applied', ''])).all(); import json; open('_apply_backup.json','w').write(json.dumps([{'jid':r[0],'st':r[1],'at':str(r[2]) if r[2] else None} for r in rows])); print(f'Backed up {len(rows)} apply statuses'); s.close()"
+          } else {
+            Write-Host "No local DB yet"
+          }
+
+      - name: Download latest DB from scrape
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: jobs-db
+          path: .
+          search_artifacts: true
+          if_no_artifact_found: warn
+          workflow: scrape.yml
+
+      - name: Restore apply statuses and normalize DB
+        run: |
+          venv\Scripts\Activate.ps1
+          python -c "import json, os; from datetime import datetime; from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); f='_apply_backup.json'; rows = json.loads(open(f).read()) if os.path.exists(f) else []; restored=0; [setattr(j, 'apply_status', r['st'] or 'not_applied') or (setattr(j, 'applied_at', datetime.fromisoformat(r['at'])) if r['at'] and r['at']!='None' else None) for r in rows if (j := s.query(Job).filter(Job.job_id == r['jid']).first())]; fixed = s.query(Job).filter((Job.apply_status == '') | (Job.apply_status == None)).update({Job.apply_status: 'not_applied'}); s.commit(); print(f'Restored {len(rows)} statuses, fixed {fixed} empty statuses'); s.close()"
+
+      - name: Verify DB exists
+        run: |
+          venv\Scripts\Activate.ps1
+          python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); print(f'Jobs in DB: {s.query(Job).count()}'); s.close()"
+
+      - name: Insert test URL as approved job
+        if: ${{ github.event.inputs.test_url != '' }}
+        run: |
+          venv\Scripts\Activate.ps1
+          python -c "from src.db.database import init_db, get_session; from src.db.models import Job; init_db(); s = get_session(); url='${{ github.event.inputs.test_url }}'; j = s.query(Job).filter(Job.url == url).first(); j = j or Job(job_id='test_'+str(hash(url))[-8:], title='Test Job', company='Test', url=url, passed_prefilter=True, match_score=99); j.apply_status='approved'; j.applied_at=None; s.merge(j); s.commit(); print(f'Ready to apply: {j.title} @ {j.company} -> {url}'); s.close()"
+
+      - name: Run auto-apply
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LINKEDIN_EMAIL: ${{ secrets.LINKEDIN_EMAIL }}
+          LINKEDIN_PASSWORD: ${{ secrets.LINKEDIN_PASSWORD }}
+          APPLICANT_EMAIL: ${{ secrets.APPLICANT_EMAIL }}
+          APPLICANT_PHONE: ${{ secrets.APPLICANT_PHONE }}
+          IMAP_PASSWORD: ${{ secrets.IMAP_PASSWORD }}
+          HEADLESS: "true"
+          PYTHONIOENCODING: "utf-8"
+        run: |
+          venv\Scripts\Activate.ps1
+          python -m src.applicant.runner
+
+      - name: Upload DB artifact
+        if: always() && hashFiles('jobs.db') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobs-db
+          path: jobs.db
+          retention-days: 90
+          overwrite: true

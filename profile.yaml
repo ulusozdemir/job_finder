@@ -1,11 +1,38 @@
+# ── Personal Info (used by auto-apply) ────────────────────────
+personal:
+  first_name: "Berke"
+  last_name: "Oden"
+  linkedin_url: "https://www.linkedin.com/in/berkeoden/"
+  location: "Ankara, Turkey"
+  address_line: "Etimesgut"
+  city: "Ankara"
+  postal_code: "06790"
+  district: "Etimesgut"
+  education: "Bachelor's Degree"
+  university: "Yildiz Technical University"
+  current_company: "Picus Security"
+  nationality: "Turkish"
+  gender: "Male"
+  date_of_birth: "25/05/1999"
+  military_status: "Completed"
+  work_authorization: "Authorized to work in Turkey. Require visa sponsorship for other countries."
+  notice_period: "2 weeks"
+  willing_to_relocate: "Yes"
+  work_mode_preference: "Open to remote, hybrid, and onsite"
+  hear_about_us: "LinkedIn"
+
+# ── Your Profile ──────────────────────────────────────────────
+# The AI scorer uses `summary` + `skills` to rate each job.
+# The pre-filter uses `must_have_any` and `deal_breakers` for fast rejection.
+
 summary: |
-  Data Scientist / Data Engineer with hands-on experience in end-to-end data pipelines
-  in a manufacturing environment. Currently working at Karsu Tekstil as the sole data
-  professional, managing data collection from machines, ETL processes, and reporting systems.
-  Strong expertise in SQL optimization (achieved 300% performance improvement),
-  real-time data processing, and building dashboards for business insights.
-  Experienced with Python, Node-RED, KepServer, and industrial data systems.
-  Interested in Data Engineering and Analytics roles with a focus on scalable data systems.
+  Data Engineer/Scientist with 4 years of hands-on experience.
+  Currently working as a Data Engineer at Picus Security, building
+  agentic AI workflows, data pipelines on AWS, and LLM-powered systems.
+  Previously worked as Data Engineer at Kb01 (fintech/trading) and
+  Data Scientist at Yapi Kredi Bank (ML models, fraud detection, AutoML).
+  Strong in Python, SQL, AWS, PySpark, FastAPI, and modern data stack.
+  Interested in Data Engineering, Data Science, and AI/ML roles.
 
 skills:
   - python
@@ -27,9 +54,19 @@ skills:
   - dashboarding
   - machine learning
   - git
-  - docker
+  - langfuse
+  - langgraph
+  - langchain
+  - openai api
+  - postman
 
-experience_years: 2
+salary_expectation: "190000 TL net/month"
+english_proficiency: "Professional working proficiency (C1) (Advanced)"
+
+experience_years: 4
+# Jobs requiring more than this many years are auto-rejected by pre-filter.
+# Regex catches patterns like "7+ years", "10 yıl" etc.
+max_experience_years: 7
 
 preferred_roles:
   - data engineer
@@ -64,12 +101,7 @@ searches:
   - keywords: "analytics engineer"
     location: "Turkey"
     time_posted: "r604800"
-
-  - keywords: "sql"
-    location: "Turkey"
-    time_posted: "r604800"
-
-  - keywords: "etl"
+  - keywords: "ai engineer"
     location: "Turkey"
     time_posted: "r604800"
 
@@ -84,21 +116,26 @@ must_have_any:
   - veri analisti
   - business intelligence
   - analytics engineer
-  - data
-  - veri
-  - sql
+  - ai engineer
+  - data analytics
   - etl
   - data pipeline
-  - reporting
-  - dashboard
+  - data platform
+  - veri analisti
+  - veri bilimci
+  - data warehouse
+  - data infrastructure
 
 deal_breakers:
-  - "6+ years"
-  - "8+ years"
-  - "10+ years"
+  - new grad
+  - yeni mezun
   - principal
   - staff engineer
   - director
   - vp of
   - head of
-  - unpaid
+
+# ── Company Blacklist ─────────────────────────────────────────
+# Jobs from these companies are silently skipped (substring match).
+company_blacklist:
+  - turing

@@ -28,9 +28,14 @@ class Job(Base):
     match_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     match_reasons: Mapped[str | None] = mapped_column(Text, nullable=True)
     missing_skills: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Notification
     notified: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # Auto-apply
+    apply_status: Mapped[str] = mapped_column(String(32), default="not_applied")
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)

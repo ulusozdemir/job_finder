@@ -1,7 +1,9 @@
 __pycache__/
 *.pyc
 .env
-jobs.db
-*.db
 .venv/
 venv/
+jobs.db
+screenshots/
+linkedin_session.json
+test_*.py

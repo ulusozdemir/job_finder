@@ -2,7 +2,7 @@ name: Job Finder Pipeline
 
 on:
   schedule:
-    # Runs every 6 hours
+    # Runs every 6 hours (4 times/day)
     - cron: "0 */6 * * *"
   workflow_dispatch: # Allow manual trigger
 
@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Download previous DB (if any)
+      - name: Download previous DB
         uses: dawidd6/action-download-artifact@v6
         with:
           name: jobs-db
@@ -39,6 +39,7 @@ jobs:
         run: python -m src.main
 
       - name: Upload DB artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jobs-db
