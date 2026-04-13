@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     linkedin_password: str = ""
     applicant_email: str = ""
     applicant_phone: str = ""
-    cv_path: str = "assets/BERKE ODEN CV.pdf"
+    cv_path: str = "assets/UlusOzdemirCVEnglish.pdf"
     max_daily_applications: int = 20
     headless: bool = True
 
