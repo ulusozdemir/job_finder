@@ -39,7 +39,7 @@ jobs:
 
       - name: Copy and clean LinkedIn session if available
         run: |
-          $src = "C:\Users\Berke\Desktop\job_finder\linkedin_session.json"
+          $src = "C:\job_finder-main\linkedin_session.json"
           if (Test-Path $src) {
             Copy-Item $src -Destination "linkedin_session.json" -Force
             venv\Scripts\Activate.ps1
